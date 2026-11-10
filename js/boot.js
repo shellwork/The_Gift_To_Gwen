@@ -28,7 +28,7 @@
     const wrap = document.createElement('div');
     wrap.style.cssText = `position:fixed;inset:0;--u:${2 * s0}px;--fs:${12 * Math.max(1, Math.round((12.8 * s0) / 12))}px;--fs2:${12 * Math.max(1, Math.round((10 * s0) / 12))}px;font-size:var(--fs);z-index:200`;
     const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'del'];
-    wrap.innerHTML = `<div class="gate"><div class="panel gate-box"><div class="gate-icon"><span></span></div><div class="gate-t">实验室门禁</div><div class="gate-sub">PROTOCOL #1126 · 仅限受邀人员</div><div class="gate-dots">${'<i></i>'.repeat(4)}</div><div class="gate-msg">提示：Gwen，密码是你的生日（4 位数字，月 + 日）</div><div class="gate-keys">${keys.map((k) => (k ? `<button class="btn small" data-k="${k}">${k === 'del' ? '⌫' : k}</button>` : '<span></span>')).join('')}</div></div></div>`;
+    wrap.innerHTML = `<div class="gate"><div class="panel gate-box"><div class="gate-icon"><span></span></div><div class="gate-t">实验室门禁</div><div class="gate-sub">PROTOCOL #1126 · 仅限受邀人员</div><div class="gate-dots">${'<i></i>'.repeat(4)}</div><div class="gate-msg">提示：密码是你的生日（4 位数字，月 + 日）</div><div class="gate-keys">${keys.map((k) => (k ? `<button class="btn small" data-k="${k}">${k === 'del' ? '⌫' : k}</button>` : '<span></span>')).join('')}</div></div></div>`;
     document.body.appendChild(wrap);
     const dots = wrap.querySelectorAll('.gate-dots i'), msg = wrap.querySelector('.gate-msg'), box = wrap.querySelector('.gate-box');
     let v = '', busy = false;
