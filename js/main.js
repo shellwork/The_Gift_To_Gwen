@@ -86,7 +86,7 @@
     onTap(p) { if (doneAll() && DREAM.tap(p)) return true; return doneAll() ? toyTap(p, { fx: 476, fy: 168, cx: 424, cy: 272 }, 'dream') : toyTap(p, { fx: 476, fy: 150, cx: 424, cy: 254 }, 'night'); },
   });
   G.def('countdown', {
-    k: 1, width: 640, noWalk: true, fixedCam: true, bgm: null,
+    k: 1, width: 640, noWalk: true, fixedCam: true, bgm: 'title',
     draw(ctx, t) {
       nightBg(t, 'sleep');
       for (const [o, sc, x0, y0] of [[0, 4, 600, 140], [12, 2, 592, 132]]) { const z = (t * 8 + o) % 24; alpha(1 - z / 24, () => text(o ? 'z' : 'Z', x0 + z, y0 - z * 2, '#c9bfe8', sc)); }
@@ -150,13 +150,15 @@
       <div class="digits">${['天', '时', '分', '秒'].map((u) => `<div class="cell"><b>--</b><span>${u}</span></div>`).join('')}</div>
       <div class="sub" style="margin:0">${C.line2}</div></div>`);
     const cells = e.querySelectorAll('.cell b');
+    let iv = 0;
     const tick = () => {
       let ms = unlockAt - Date.now();
-      if (ms <= 0) { G.reload(); return; }
+      // 倒计时到 0：不刷新页面（刷新后浏览器不让自动出声），直接在原地播解锁动画
+      if (ms <= 0) { clearInterval(iv); if (!localStorage.getItem('gwen1126-opened')) playUnlock(); else showTitle(); return; }
       const s = Math.floor(ms / 1000);
       [Math.floor(s / 86400), Math.floor((s % 86400) / 3600), Math.floor((s % 3600) / 60), s % 60].forEach((v, i) => (cells[i].textContent = String(v).padStart(2, '0')));
     };
-    tick(); setInterval(tick, 1000);
+    tick(); iv = setInterval(tick, 1000);
   }
 
   function showTitle() {
@@ -269,6 +271,15 @@
     const onKey = (ev) => { if (/^[0-9]$/.test(ev.key)) press(ev.key); else if (ev.key === 'Backspace') press('del'); else if (ev.key === 'Enter') press('ok'); else return; ev.preventDefault(); ev.stopPropagation(); };
     document.addEventListener('keydown', onKey, true);
   }
+
+  // 片尾「再玩一次 / 回到标题」：原地回到标题页，不刷新页面，这样音乐能接着放
+  G.backToTitle = async () => {
+    G.lock();
+    await G.trans('mosaic', true, 600);
+    showTitle();
+    await G.trans('mosaic', false, 600);
+    while (G.locked) G.unlock();   // 结局里加过好几层锁，回到标题要全部解开，不然点不了 Flex 和猫
+  };
 
   G.start();
   gate(() => {

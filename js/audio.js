@@ -17,7 +17,8 @@ const AU = (() => {
     if (!ctx) {
       const AC = window.AudioContext || window.webkitAudioContext;
       if (!AC) return;
-      ctx = new AC();
+      // 部署版的密码盘在点按键时就建好了 AudioContext（那时有用户点击，已经是可播放状态），这里直接接着用
+      ctx = window.__AC || new AC();
       master = ctx.createGain(); master.gain.value = muted ? 0 : 0.6; master.connect(ctx.destination);
       musicBus = ctx.createGain(); musicBus.gain.value = 0.55; musicBus.connect(master);
       sfxBus = ctx.createGain(); sfxBus.gain.value = 0.9; sfxBus.connect(master);
@@ -61,6 +62,7 @@ const AU = (() => {
   }
 
   function sfx(name) {
+    if (!ctx && window.__AC) unlock();
     if (!ctx || muted) return;
     const t = ctx.currentTime;
     switch (name) {
@@ -171,6 +173,7 @@ const AU = (() => {
     if (trackName === name && fromBeat == null) return;
     stopBgm();
     if (!name) return;
+    if (!ctx && window.__AC) { pending = null; unlock(); }   // 密码盘已经把声音打开了，直接放
     if (!ctx) { pending = name; return; }
     initMusic();
     trackName = name;
@@ -230,9 +233,15 @@ const AU = (() => {
 
   // 麦克风吹气检测
   let mic = null;
+  // 手机上打开麦克风后，系统会切到「通话模式」，声音从听筒出来、很小。
+  // 用完麦克风后：关掉音轨、断开节点，并把网页的音频会话切回「播放」（iOS 16.4+ 支持 navigator.audioSession）
+  function setSession(type) { try { if (navigator.audioSession) navigator.audioSession.type = type; } catch (e) {} }
   async function startMic() {
     unlock();
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+    setSession('play-and-record');
+    let stream;
+    try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } }); }
+    catch (e) { setSession('playback'); throw e; }
     const src = ctx.createMediaStreamSource(stream);
     const an = ctx.createAnalyser(); an.fftSize = 1024;
     src.connect(an);
@@ -240,9 +249,20 @@ const AU = (() => {
     mic = {
       stream,
       level() { an.getFloatTimeDomainData(buf); let s = 0; for (let i = 0; i < buf.length; i++) s += buf[i] * buf[i]; return Math.sqrt(s / buf.length); },
-      stop() { stream.getTracks().forEach((t) => t.stop()); mic = null; },
+      stop() { stream.getTracks().forEach((t) => t.stop()); try { src.disconnect(); } catch (e) {} mic = null; releaseMic(); },
     };
     return mic;
+  }
+
+  // 麦克风关掉之后把声音切回扬声器。没有 audioSession 的老系统：重建一个 AudioContext（旧的那个会一直卡在通话模式）
+  function releaseMic() {
+    if (navigator.audioSession) { setSession('playback'); return; }
+    if (!/iPhone|iPad|Android/i.test(navigator.userAgent) || !ctx) return;
+    const old = ctx, name = trackName;
+    stopBgm(); ctx = null; window.__AC = null; echo = null; waves = null;
+    try { old.close(); } catch (e) {}
+    unlock();
+    if (name) bgm(name);
   }
 
   // 对话打字音：每个人音高不同，带一点随机起伏
@@ -251,6 +271,7 @@ const AU = (() => {
   return {
     unlock, sfx, bgm, stopBgm, fadeTo, setMuted, startMic, blip,
     get muted() { return muted; },
+    get running() { return !!ctx && ctx.state === 'running'; },
     get mic() { return mic; },
     get current() { return trackName; },
     // 试听页用：当前播放到第几拍、跳到某一拍

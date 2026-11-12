@@ -1129,6 +1129,6 @@
     b.querySelectorAll('button').forEach((x) => x.addEventListener('pointerdown', (e) => e.stopPropagation()));
     b.querySelector('.re').addEventListener('click', () => { AU.sfx('select'); G.layer.querySelectorAll('.credits, .hidden-end').forEach((c) => c.remove()); b.remove(); letter('again'); });
     b.querySelector('.ach').addEventListener('click', () => { AU.sfx('select'); achPanel(); });
-    b.querySelector('.replay').addEventListener('click', () => { AU.sfx('select'); G.resetSave(); G.reload(); });  // 存档清空，成就（含隐藏成就）保留
+    b.querySelector('.replay').addEventListener('click', () => { AU.sfx('select'); G.resetSave(); G.backToTitle(); });  // 存档清空，成就（含隐藏成就）保留
   }
 })();

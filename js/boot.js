@@ -19,6 +19,35 @@
   }
   async function tryPass(pass) { try { const code = await decrypt(pass); window.__BOOT_KEY = pass; load(code); return true; } catch (e) { return false; } }
 
+  // 密码盘的按键音。按键时（有用户点击）建好 AudioContext 并留给游戏用（window.__AC），进游戏后音乐就能直接响
+  const snd = (() => {
+    let ac = null, out = null;
+    const ok = () => {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return false;
+      if (!ac) { ac = window.__AC = new AC(); out = ac.createGain(); out.gain.value = 0.54; out.connect(ac.destination); }
+      if (ac.state === 'suspended') ac.resume();
+      return localStorage.getItem('gwen1126-mute') !== '1';
+    };
+    const tone = (f, t0, dur, vol) => {
+      const o = ac.createOscillator(), g = ac.createGain(); o.type = 'square'; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol, t0 + 0.006);
+      g.gain.setValueAtTime(vol, t0 + Math.max(0.01, dur * 0.6)); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      o.connect(g); g.connect(out); o.start(t0); o.stop(t0 + dur + 0.02);
+    };
+    const N = { C5: 523.25, E5: 659.25, G5: 783.99, C6: 1046.5 };
+    return (name) => {
+      try {
+        if (!ok()) return;
+        const t = ac.currentTime;
+        if (name === 'blip') tone(880 + Math.random() * 60, t, 0.03, 0.025);
+        else if (name === 'click') tone(1400, t, 0.02, 0.04);
+        else if (name === 'error') { tone(220, t, 0.18, 0.08); tone(220, t + 0.25, 0.18, 0.08); }
+        else if (name === 'success') ['C5', 'E5', 'G5', 'C6', null, 'G5', 'C6'].forEach((n, i) => n && tone(N[n], t + i * 0.09, 0.099, 0.07));
+      } catch (e) {}
+    };
+  })();
+
   // 游戏自己刷新时（再玩一次、倒计时结束）不用再输
   const kept = sessionStorage.getItem('gwen1126-k'); sessionStorage.removeItem('gwen1126-k');
   (async () => {
@@ -35,11 +64,11 @@
     const show = () => dots.forEach((d, i) => d.classList.toggle('on', i < v.length));
     const check = async () => {
       busy = true;
-      if (await tryPass(v)) { box.classList.add('ok'); msg.textContent = '验证通过，欢迎你，Gwen！'; setTimeout(() => { wrap.querySelector('.gate').classList.add('out'); setTimeout(() => wrap.remove(), 450); }, 700); return; }
-      box.classList.remove('shake'); void box.offsetWidth; box.classList.add('shake'); msg.textContent = '密码不对哦，再想想～'; msg.classList.add('bad');
+      if (await tryPass(v)) { snd('success'); box.classList.add('ok'); msg.textContent = '验证通过，欢迎你，Gwen！'; setTimeout(() => { wrap.querySelector('.gate').classList.add('out'); setTimeout(() => wrap.remove(), 450); }, 700); return; }
+      snd('error'); box.classList.remove('shake'); void box.offsetWidth; box.classList.add('shake'); msg.textContent = '密码不对哦，再想想～'; msg.classList.add('bad');
       setTimeout(() => { v = ''; show(); busy = false; }, 700);
     };
-    const press = (k) => { if (busy) return; if (k === 'del') v = v.slice(0, -1); else if (k === 'ok') { if (v.length === 4) check(); } else if (v.length < 4) { v += k; if (v.length === 4) setTimeout(check, 200); } show(); };
+    const press = (k) => { if (busy) return; if (k === 'del') { v = v.slice(0, -1); snd('click'); } else if (k === 'ok') { if (v.length === 4) check(); else snd('click'); } else if (v.length < 4) { v += k; snd('blip'); if (v.length === 4) setTimeout(check, 200); } show(); };
     wrap.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => press(b.dataset.k)));
     addEventListener('keydown', (e) => { if (!wrap.isConnected) return; if (/^[0-9]$/.test(e.key)) press(e.key); else if (e.key === 'Backspace') press('del'); else if (e.key === 'Enter') press('ok'); });
   })();

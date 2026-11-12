@@ -539,7 +539,16 @@ const G = (() => {
   const muteBtn = $('#btn-mute');
   const syncMute = () => muteBtn.classList.toggle('off', AU.muted);
   muteBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
-  muteBtn.addEventListener('click', (e) => { e.stopPropagation(); AU.unlock(); AU.setMuted(!AU.muted); syncMute(); });
+  // 浏览器要求「用户点过页面」才能出声：页面上任何一次点击 / 按键都顺手把声音打开（刷新后、回到标题后点哪里都行）
+  let wokeAt = -1e9;
+  const wake = (e) => {
+    if (e.type === 'pointerdown' || e.type === 'touchstart' || e.type === 'keydown') { if (!AU.running) wokeAt = performance.now(); }
+    else if (e.type === 'click') setTimeout(() => (wokeAt = -1e9), 0);   // 只对「这一次」点击有效
+    AU.unlock();
+  };
+  ['pointerdown', 'touchstart', 'touchend', 'click', 'keydown'].forEach((t) => document.addEventListener(t, wake, { capture: true, passive: true }));
+  // 声音还没开的时候点喇叭按钮，是想「打开声音」，不要反手把它静音
+  muteBtn.addEventListener('click', (e) => { e.stopPropagation(); const justWoke = performance.now() - wokeAt < 1500; AU.unlock(); if (!(justWoke && !AU.muted)) AU.setMuted(!AU.muted); syncMute(); });
   syncMute();
 
   G.start = () => { GFX.build(); HD.build(); resize(); G.syncFF(); requestAnimationFrame(frame); };
