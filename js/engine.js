@@ -286,6 +286,36 @@ const G = (() => {
 
   // ---------- scenes ----------
   G.def = (name, s) => (G.scenes[name] = Object.assign({ name, width: W, floor: 150, minX: 10, maxX: null }, s));
+  // 四个角的小括号（悬停 / 剧情高亮共用）
+  function brackets(o, pad = 0) {
+    const p = pad + 1 + Math.round(Math.sin(G.t * 8) * 1.5 + 1.5), x0 = Math.round(o.x) - p, y0 = Math.round(o.y) - p, x1 = Math.round(o.x + o.w) + p, y1 = Math.round(o.y + o.h) + p;
+    for (const [cx, cy, dx, dy] of [[x0, y0, 1, 1], [x1, y0, -1, 1], [x0, y1, 1, -1], [x1, y1, -1, -1]]) {
+      GFX.R(cx - (dx < 0 ? 6 : 0) - 1, cy - 1, 8, 4, '#2b2238'); GFX.R(cx - (dx < 0 ? 2 : 0) - 1, cy - (dy < 0 ? 6 : 0) - 1, 4, 8, '#2b2238');
+      GFX.R(cx - (dx < 0 ? 5 : 0), cy, 6, 2, '#fff6c0'); GFX.R(cx - (dx < 0 ? 1 : 0), cy - (dy < 0 ? 5 : 0), 2, 6, '#fff6c0');
+    }
+  }
+  // 剧情高亮：周围压暗，只留下目标附近一圈（像素台阶边），目标上一点暖光 + 闪烁的角括号
+  function drawFocus(f) {
+    const cx = Math.round(f.x + f.w / 2), cy = f.y + f.h / 2, rx = f.w / 2 + 22, ry = f.h / 2 + 20, xa = Math.floor(G.camX) - 4, xb = Math.ceil(G.camX + W) + 4;
+    GFX.alpha(0.55 * f.a, () => {
+      for (let y = 0; y < H; y += 2) {
+        const dy = (y + 1 - cy) / ry;
+        if (Math.abs(dy) >= 1) { GFX.R(xa, y, xb - xa, 2, '#0d0a1e'); continue; }
+        const hw = Math.round((rx * Math.sqrt(1 - dy * dy)) / 2) * 2;
+        GFX.R(xa, y, cx - hw - xa, 2, '#0d0a1e'); GFX.R(cx + hw, y, xb - cx - hw, 2, '#0d0a1e');
+      }
+    });
+    if (typeof HD !== 'undefined' && HD.glow) HD.glow(cx, cy, Math.max(f.w, f.h) / 2 + 14, '#fff3c9', 0.22 * f.a);
+    GFX.alpha(f.a, () => brackets(f, 3));
+  }
+  // G.spot(rect)：打开高亮；G.spot(null)：关掉
+  G.focus = null;
+  G.spot = (r, ms = 450) => {
+    if (r) { G.focus = Object.assign({ a: 0 }, r); return G.tween(G.focus, { a: 1 }, ms); }
+    const f = G.focus; if (!f) return Promise.resolve();
+    return G.tween(f, { a: 0 }, ms).then(() => { if (G.focus === f) G.focus = null; });
+  };
+
   G.goto = async (name, opt = {}) => {
     G.lock();
     const tr = opt.trans || 'mosaic';
@@ -293,7 +323,7 @@ const G = (() => {
     if (!opt.noFade) await G.trans(tr, true, opt.fade || 600, tr === 'iris' ? at : null);
     if (G.scene && G.scene.exit) G.scene.exit();
     G.onHover = null;
-    G.actors = []; G.objects = []; G.particles = []; G.vignette = null; G.setFilter(''); G.letterbox = 0; G.hoverObj = null; G.ripple = null;
+    G.actors = []; G.objects = []; G.particles = []; G.vignette = null; G.setFilter(''); G.letterbox = 0; G.hoverObj = null; G.ripple = null; G.focus = null;
     layer.innerHTML = '';
     rack.classList.add('hidden');
     $('#tip').classList.add('hidden');
@@ -492,16 +522,11 @@ const G = (() => {
       s.drawFg && s.drawFg(ctx, G.t);
       // 前景视差层：离镜头更近，比背景移动得快一点
       if (s.fgPar) { ctx.save(); ctx.translate(-cam * (s.fgParK ?? 0.3), 0); s.fgPar(ctx, G.t); ctx.restore(); }
+      if (G.focus && G.focus.a > 0.01) drawFocus(G.focus);
       if (!G.locked) drawMarkers();
       // 鼠标悬停的物品：四个角的小括号一闪一闪
       const ho = G.hoverObj;
-      if (ho && !G.locked && !ho.hidden && G.objects.includes(ho)) {
-        const p = 1 + Math.round(Math.sin(G.t * 8) * 1.5 + 1.5), x0 = Math.round(ho.x) - p, y0 = Math.round(ho.y) - p, x1 = Math.round(ho.x + ho.w) + p, y1 = Math.round(ho.y + ho.h) + p;
-        for (const [cx, cy, dx, dy] of [[x0, y0, 1, 1], [x1, y0, -1, 1], [x0, y1, 1, -1], [x1, y1, -1, -1]]) {
-          GFX.R(cx - (dx < 0 ? 6 : 0) - 1, cy - (dy < 0 ? 0 : 0) - 1, 8, 4, '#2b2238'); GFX.R(cx - (dx < 0 ? 2 : 0) - 1, cy - (dy < 0 ? 6 : 0) - 1, 4, 8, '#2b2238');
-          GFX.R(cx - (dx < 0 ? 5 : 0), cy, 6, 2, '#fff6c0'); GFX.R(cx - (dx < 0 ? 1 : 0), cy - (dy < 0 ? 5 : 0), 2, 6, '#fff6c0');
-        }
-      }
+      if (ho && !G.locked && !ho.hidden && G.objects.includes(ho)) brackets(ho);
       // 点地面的涟漪
       if (G.ripple) { const rp = G.ripple, k = rp.t / 0.45; if (k >= 1) G.ripple = null; else GFX.alpha(1 - k, () => { const rx = 4 + k * 16, ry = 1.5 + k * 5; for (let a = 0; a < 6.283; a += 0.25) GFX.R(Math.round(rp.x + Math.cos(a) * rx), Math.round(rp.y + Math.sin(a) * ry), 2, 1, '#ffffff'); }); }
       if (G.marker) { const f = K === 1 ? 2 : 1; GFX.alpha(G.marker.t * 2, () => { GFX.R(G.marker.x - 2 * f, s.floor + f, 5 * f, f, '#fff'); GFX.R(G.marker.x, s.floor, f, 3 * f, '#fff'); }); }

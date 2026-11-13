@@ -340,6 +340,19 @@ const LAB = (() => {
   let st;
   const SEEN_IDS = ['photo', 'whiteboard', 'jar', 'notebook', 'bulb', 'fridge', 'ot2', 'partnerDesk', 'window'];
   const EXPLORE = ['whiteboard', 'jar', 'notebook', 'bulb', 'fridge', 'ot2', 'partnerDesk', 'window'];
+  const PHOTO = { x: 166, y: 180, w: 22, h: 24 };
+  // 发现照片：Gwen 冒「!」→ 画面上下黑边 + 照片周围压暗高亮
+  async function notice() {
+    G.gwen.face = 'surprised';
+    AU.sfx('ding');
+    await G.tween(G.gwen, { hop: 8 }, 120); await G.tween(G.gwen, { hop: 0 }, 160);
+    G.gwen.dir = G.gwen.x < PHOTO.x ? 1 : -1;
+    G.zoomTo(1.14, PHOTO.x, PHOTO.y, 450);
+    G.burst(PHOTO.x + 11, PHOTO.y + 8, 10, ['#fff3a0', '#ffffff'], { speed: 30, life: 0.7, g: 0, size: 2 });
+    await G.spot(PHOTO);
+    await G.wait(350);
+  }
+  async function unnotice() { G.zoomTo(1, null, null, 450); await G.spot(null); G.gwen.face = null; }
   const explored = () => EXPLORE.filter((k) => (G.flags.labSeen || {})[k]).length;
 
   // 「好奇宝宝」：实验室里带「!」的东西（含合影）都看过
@@ -358,8 +371,7 @@ const LAB = (() => {
   async function recall() {
     G.flags.lab_photoReady = true; G.persist();
     await G.wait(400);
-    G.gwen.face = 'surprised';
-    await G.tween(G.gwen, { hop: 8 }, 120); await G.tween(G.gwen, { hop: 0 }, 160);
+    await notice();
     await G.talk(S.photoRecall);
     G.gwen.face = null;
     await G.walk(G.gwen, 186); G.gwen.dir = -1;
@@ -367,6 +379,7 @@ const LAB = (() => {
     checkCurious();   // 自动走到照片前也算看过，这里要补一次检查
     await G.wait(300);
     await G.talk(S.photo);
+    G.spot(null);
     G.goto('boston', { fade: 900, trans: 'iris' });
   }
 
@@ -429,8 +442,12 @@ const LAB = (() => {
     async start(opt) {
       if (!G.flags.lab_entered) {
         G.flags.lab_entered = true; G.persist();
-        await G.wait(300);
+        await G.wait(200);
+        // 进门走两步，路过工位时看到桌上的照片
+        await G.walk(G.gwen, 124);
+        await notice();
         await G.talk(S.enter);
+        await unnotice();
         if (!G.flags.lab_photoReady) G.toast(S.exploreTip, 3000);
       }
       if (G.flags.lab_boston && !G.flags.lab_flex && !G.flags.lab_errShown) {
@@ -505,8 +522,12 @@ const LAB = (() => {
       await G.wait(700);
       await G.notify(FS.notifyFrom, FS.notifyMsg, FS.notifySub);
       await G.talk(FS.goMeeting);
-      G.toast(FS.goTip, 3000);
-      G.setGoal('door');
+      // 自动往左边的门走，走一段就转场去组会
+      G.gwen.speed = 190; me.dir = -1;
+      G.walk(G.gwen, 54);
+      await G.wait(1600);
+      AU.sfx('door');
+      G.goto('boss', { fade: 900 });
     },
 
     update(dt) {
