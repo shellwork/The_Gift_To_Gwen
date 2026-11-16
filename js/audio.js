@@ -220,6 +220,15 @@ const AU = (() => {
       if (g) { g.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.12); setTimeout(() => g.disconnect(), 1200); }
     }
   }
+  // 换场景时用：旧曲子慢慢淡出的同时，新曲子从无声慢慢升起来（不会一下子被切断）
+  function crossTo(name, out = 1.2, fin = 1.8) {
+    if (trackName === name) return;
+    if (!name) { stopBgm(out); return; }
+    if (!ctx) { bgm(name); return; }
+    const had = !!timer;
+    stopBgm(had ? out : 0);
+    bgm(name, undefined, had ? fin : 0.4);
+  }
   // 交叉淡化：旧曲子淡出，gap 秒后新曲子淡入
   function fadeTo(name, out = 2, fadeIn = 3, gap = 1) {
     stopBgm(out);
@@ -269,7 +278,7 @@ const AU = (() => {
   function blip(f) { if (!ctx || muted) return; tone(f * (0.97 + Math.random() * 0.06), ctx.currentTime, 0.032, { vol: 0.022, type: f > 1200 ? 'triangle' : 'square' }); }
 
   return {
-    unlock, sfx, bgm, stopBgm, fadeTo, setMuted, startMic, blip,
+    unlock, sfx, bgm, stopBgm, fadeTo, crossTo, setMuted, startMic, blip,
     get muted() { return muted; },
     get running() { return !!ctx && ctx.state === 'running'; },
     get mic() { return mic; },

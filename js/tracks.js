@@ -213,7 +213,7 @@ const TRACKS_SRC = (() => {
     "3+5+7+2'+3'/6 2'/1 5+2'/3 1'/2 3'/2 1'/2",
     "0/4 3'/2 1'/2 0/3 1'/1 7/2 1'/2",
   ];
-  const yumeRH = [
+  const yumeRHbars = [
     "0/8 0/2 0/1 1'/1 2'/1 1'/1 7/1 1'/1",
     ...CHORUS,
     "1'/16",
@@ -237,12 +237,13 @@ const TRACKS_SRC = (() => {
     "1+3+6+1'/4 3+6/4 6.+1+2+#4/8 3'/2 1'/2",
     "0/4 3'/2 1'/2 0/3 1'/1 7/2 1'/2",
     "1'/16",
-  ].join(' | ');
+  ];
+  const yumeRH = yumeRHbars.join(' | ');
   const L14 = "1:/2 5:/2 3./2 5:/2 1:/2 5:/2 3./2 5:/2", L15 = "3:/2 1./2 5./2 1./2 3:/2 1./2 5./2 1./2", L16 = "4:/2 1./2 4./2 1./2 4:/2 1./2 4./2 1./2";
   const L17 = "4:/2 1./2 2./2 1./2 5:/2 7:/2 2./2 7:/2";
   const syn = (c) => [2, 4, 2, 2, 4, 2].map((d) => c + '/' + d).join(' ');
   const L2 = "1./2 1/2 2+3+5/2 1/2 2+3+5/2 1/2 2+3+5/2 1/2", L3 = "7:/2 7./2 2+4+6/2 7./2 2+3+5/2 7./2 2+3+5/2 7./2", L4 = "6:/2 6./2 1+3+5/2 6./2 1+3+5/2 6./2 1+3+5/2 6./2";
-  const yumeLH = [
+  const yumeLHbars = [
     "0/16", L2, L3, L4,
     "5:/2 5./2 #6.+2+4/2 5./2 6.+1+3/2 5./2 6.+1+3/2 5./2",
     "4:/2 4./2 6.+1/2 4./2 4:/2 4./2 5.+7.+2/2 4./2",
@@ -267,7 +268,8 @@ const TRACKS_SRC = (() => {
     "6:+3./4 5:+3./4 #4:+2./8 0/4",
     "2+4+1'/2 0/2 0/4 5.+2+4/2 0/2 0/4",
     "1./2 5./2 1/2 2/2 1+2+3+5/8",
-  ].join(' | ');
+  ];
+  const yumeLH = yumeLHbars.join(' | ');
   const RH = score(yumeRH), LH = score(yumeLH);
   const yume = { bpm: 82, start: 36, loop: 36, echo: { t: 0.75, fb: 0.3, wet: 0.26 }, ch: [
     { v: 'p25', vol: 0.042, vib: 1, rate: 4, n: voiceOf(RH, top) },
@@ -277,5 +279,54 @@ const TRACKS_SRC = (() => {
     { v: 'sine', vol: 0.03, env: 'pluck', rate: 4, n: voiceOf(LH, hiLH) },
   ] };
 
-  return { title, home, drive, lab, flash, boss, street, night, reveal, birthday, ending, yume };
+  // ================= 隐藏支线：ユメセカイ的变奏 =================
+  // 从原曲里截一段（a 到 b 小节），换速度、音色、八度和伴奏型，每个回忆小关一首
+  function ysec(a, b) { return { R: score(yumeRHbars.slice(a, b).join(' | ')), L: score(yumeLHbars.slice(a, b).join(' | ')), n: b - a }; }
+  const V = ysec(9, 21), CH1 = ysec(1, 9), CH2 = ysec(29, 37), BR = ysec(21, 29), VS = ysec(9, 17);
+  // 梦境大厅：主歌放慢，八音盒一样的高音，底下一层很轻的长音
+  const yumeHub = { bpm: 66, loop: 0, echo: { t: 0.75, fb: 0.38, wet: 0.32 }, ch: [
+    { v: 'sine', vol: 0.06, env: 'pluck', rate: 4, n: tr(voiceOf(V.R, top), 12) },
+    { v: 'tri', vol: 0.016, rate: 4, n: tr(voiceOf(V.R, top), 0) },
+    { v: 'sine', vol: 0.03, env: 'pluck', rate: 4, n: tr(voiceOf(V.L, hiLH), 12) },
+    { v: 'tri', vol: 0.07, env: 'pad', rate: 4, n: voiceOf(V.L, lowOnly) },
+  ] };
+  // 一年前的展会：副歌，明亮的方波 + 轻快的鼓
+  const yumeSlas = { bpm: 100, loop: 0, echo: { t: 0.5, fb: 0.2, wet: 0.14 }, ch: [
+    { v: 'p25', vol: 0.04, vib: 1, rate: 4, n: voiceOf(CH1.R, top) },
+    { v: 'p12', vol: 0.016, rate: 4, n: voiceOf(CH1.R, low) },
+    { v: 'tri', vol: 0.1, rate: 4, n: voiceOf(CH1.L, lowOnly) },
+    { v: 'sine', vol: 0.026, env: 'pluck', rate: 4, n: voiceOf(CH1.L, hiLH) },
+    { v: 'drum', vol: 0.32, n: rep('k - h - s - h h', CH1.n) },
+  ] };
+  // 晴天的披萨：主歌升两个半音，断奏，蹦蹦跳跳的低音
+  const yumePizza = { bpm: 108, loop: 0, echo: { t: 0.5, fb: 0.15, wet: 0.1 }, ch: [
+    { v: 'sq', vol: 0.03, rate: 4, n: tr(stacc(voiceOf(VS.R, top)), 2) },
+    { v: 'tri', vol: 0.02, rate: 4, n: tr(voiceOf(VS.R, top), 14) },
+    { v: 'tri', vol: 0.1, rate: 4, n: tr(stacc(voiceOf(VS.L, lowOnly)), 2) },
+    { v: 'drum', vol: 0.34, n: rep('k - s - k k s -', VS.n) },
+  ] };
+  // 续命咖啡：间奏，三角波旋律 + 拨弦 + 稳稳的鼓点（小游戏要跟着拍子点）
+  const yumeCafe = { bpm: 88, loop: 0, echo: { t: 0.75, fb: 0.25, wet: 0.2 }, ch: [
+    { v: 'tri', vol: 0.05, vib: 1, rate: 4, n: voiceOf(BR.R, top) },
+    { v: 'sine', vol: 0.035, env: 'pluck', rate: 4, n: tr(voiceOf(BR.L, hiLH), 12) },
+    { v: 'tri', vol: 0.09, rate: 4, n: voiceOf(BR.L, lowOnly) },
+    { v: 'drum', vol: 0.4, n: rep('k - h - s - h -', BR.n) },
+  ] };
+  // 毕业那天：第二遍副歌，竖琴一样的拨弦，没有鼓
+  const yumeBloom = { bpm: 78, loop: 0, echo: { t: 0.75, fb: 0.32, wet: 0.3 }, ch: [
+    { v: 'p12', vol: 0.03, vib: 1, rate: 4, n: tr(voiceOf(CH2.R, top), 12) },
+    { v: 'sine', vol: 0.045, env: 'pluck', rate: 4, n: voiceOf(CH2.R, top) },
+    { v: 'sine', vol: 0.04, env: 'pluck', rate: 4, n: tr(voiceOf(CH2.L, hiLH), 12) },
+    { v: 'tri', vol: 0.06, env: 'pad', rate: 4, n: voiceOf(CH2.L, lowOnly) },
+  ] };
+  // 夜里的小蛋糕：副歌升调，热闹一点，带吊镲
+  const yumeCake = { bpm: 112, loop: 0, echo: { t: 0.5, fb: 0.18, wet: 0.12 }, ch: [
+    { v: 'p25', vol: 0.04, vib: 1, rate: 4, n: tr(voiceOf(CH2.R, top), 2) },
+    { v: 'tri', vol: 0.022, rate: 4, n: tr(voiceOf(CH2.R, top), 14) },
+    { v: 'p12', vol: 0.014, rate: 4, n: tr(voiceOf(CH2.R, mid), 2) },
+    { v: 'tri', vol: 0.1, rate: 4, n: tr(voiceOf(CH2.L, lowOnly), 2) },
+    { v: 'drum', vol: 0.36, n: rep('k h s h k k s h', CH2.n - 1) + ' k s k s s s c - k -' },
+  ] };
+
+  return { title, home, drive, lab, flash, boss, street, night, reveal, birthday, ending, yume, yumeHub, yumeSlas, yumePizza, yumeCafe, yumeBloom, yumeCake };
 })();

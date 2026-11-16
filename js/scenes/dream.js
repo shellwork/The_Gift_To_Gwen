@@ -7,7 +7,7 @@ const DREAM = (() => {
   const HEART = ['.#.#.', '#####', '#####', '.###.', '..#..'];
   const HEART_C = ['#ff8fb3', '#ff6f9a', '#ffb3d1', '#c9a3ff', '#9fd8ff', '#ffd66b', '#9ef0c8', '#ffb38a'];
   const STARS = Array.from({ length: 170 }, (_, i) => ({ x: rnd(i) * 640, y: Math.pow(rnd(i + 300), 1.5) * 230, s: rnd(i + 600) > 0.9 ? 2 : 1, p: rnd(i + 900) * 6, c: rnd(i + 1200) > 0.6 ? '#ffe6f2' : rnd(i + 1500) > 0.5 ? '#fff6d8' : '#e8e0ff' }));
-  let bg = null, sprites = null, hover = null;
+  let bg = null, sprites = null, hover = null, show = null;   // show(k)：这件回忆现在要不要画（支线里一件件找回来）
 
   function heart(x, y, s, c) { HEART.forEach((row, j) => [...row].forEach((ch, i) => ch === '#' && R(Math.round(x + i * s), Math.round(y + j * s), s, s, c))); }
   // 在一张小画布上画东西（画完自动描边、调色）
@@ -116,6 +116,7 @@ const DREAM = (() => {
   // o.floor：镜面开始的高度；o.ripples：要在脚下荡起涟漪的人物
   function draw(t, o = {}) {
     const floor = o.floor ?? 258;
+    show = o.mem || null;
     if (!bg || bg.floor !== floor) { bg = paint(floor); bg.floor = floor; }
     if (!sprites) makeSprites();
     const ctx = GFX.ctx;
@@ -141,6 +142,11 @@ const DREAM = (() => {
     { const c = sprites.mid[1], x = Math.round(((t * 6 + 900) % 1700) - c.width - 120); if (x > -c.width && x < 640) alpha(0.8, () => ctx.drawImage(c, x, 62)); }
     // 回忆漂浮物
     MEM.forEach((m) => {
+      if (show && !show(m.k)) {
+        // 还没找回来：只剩一朵淡淡的小云，上面一个虚线的空位
+        if (o.ghost) { const c = sprites.mem[m.k], q = memPos(m, t), cx = q.x + c.width / 2; alpha(0.35, () => ctx.drawImage(sprites.cushion, Math.round(cx - sprites.cushion.width / 2), q.y + c.height - 4)); alpha(0.3 + Math.sin(t * 2 + m.p) * 0.12, () => { for (let i = 0; i < c.width; i += 4) { R(q.x + i, q.y, 2, 1, '#ffe0f4'); R(q.x + i, q.y + c.height - 6, 2, 1, '#ffe0f4'); } for (let j = 0; j < c.height - 6; j += 4) { R(q.x, q.y + j, 1, 2, '#ffe0f4'); R(q.x + c.width - 1, q.y + j, 1, 2, '#ffe0f4'); } }); }
+        return;
+      }
       const c = sprites.mem[m.k], hv = hover === m, q = memPos(m, t), lift = hv ? 3 : 0, cx = q.x + c.width / 2, cy = q.y + c.height / 2;
       HD.glow(cx, cy - lift, hv ? 26 : 18, hv ? '#fff2fa' : '#ffe0f4', hv ? 0.42 : 0.2 + Math.sin(t * 2 + m.p) * 0.06);
       // 每件东西坐在一小朵云上，跟着一起浮动
@@ -204,7 +210,7 @@ const DREAM = (() => {
 
   // 点到回忆漂浮物：冒出一句话
   function hit(p) {
-    for (const m of MEM) { const c = sprites && sprites.mem[m.k]; if (!c) continue; const q = memPos(m, G.t); if (p.x >= q.x - 6 && p.x <= q.x + c.width + 6 && p.y >= q.y - 6 && p.y <= q.y + c.height + 6) return { m, q, c }; }
+    for (const m of MEM) { const c = sprites && sprites.mem[m.k]; if (!c || (show && !show(m.k))) continue; const q = memPos(m, G.t); if (p.x >= q.x - 6 && p.x <= q.x + c.width + 6 && p.y >= q.y - 6 && p.y <= q.y + c.height + 6) return { m, q, c }; }
     return null;
   }
   function say(h) {
@@ -224,5 +230,9 @@ const DREAM = (() => {
 
   // 提前把背景和小物件画好，避免切进梦境的那一刻卡一下
   function prepare(floor = 258) { if (!bg || bg.floor !== floor) { bg = paint(floor); bg.floor = floor; } if (!sprites) makeSprites(); }
-  return { draw, drawFg, prepare, reflect, rim, tap, hoverAt, heart, HEART_C };
+  // 支线用：某件回忆的小图和它在天上的位置
+  function memSprite(k) { if (!sprites) makeSprites(); return sprites.mem[k]; }
+  function memAt(k, t) { const m = MEM.find((x) => x.k === k); return m ? memPos(m, t) : null; }
+  function cushion() { if (!sprites) makeSprites(); return sprites.cushion; }
+  return { draw, drawFg, prepare, reflect, rim, tap, hoverAt, heart, HEART_C, memSprite, memAt, cushion, sprite, puff, CL_NEAR };
 })();

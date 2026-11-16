@@ -319,6 +319,9 @@ const G = (() => {
   G.goto = async (name, opt = {}) => {
     G.lock();
     const tr = opt.trans || 'mosaic';
+    // 音乐在转场一开始就交叉淡化过去，不会在换场景时被一刀切断
+    const nextBgm = G.scenes[name] && G.scenes[name].bgm;
+    if (nextBgm !== undefined) AU.crossTo(nextBgm);
     const at = G.gwen ? { x: G.gwen.x - G.camX, y: G.gwen.y - 40 } : null;
     if (!opt.noFade) await G.trans(tr, true, opt.fade || 600, tr === 'iris' ? at : null);
     if (G.scene && G.scene.exit) G.scene.exit();
@@ -331,7 +334,7 @@ const G = (() => {
     G.scene = s; G.camX = 0; G.gwen = null;
     K = s.k || 2; W = CW / K; H = CH / K;
     if (s.checkpoint) { G.save.scene = name; G.persist(); }
-    if (s.bgm !== undefined) AU.bgm(s.bgm);
+    if (s.bgm !== undefined && s.bgm !== nextBgm) AU.crossTo(s.bgm);   // setup 前又改了曲子的情况
     s.setup && s.setup(opt);
     if (G.gwen) G.camX = G.clamp(G.gwen.x - W / 2, 0, Math.max(0, s.width - W));
     if (opt.cam !== undefined) G.camX = opt.cam;

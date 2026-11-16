@@ -32,7 +32,7 @@
   }
 
   // ---------- 标题页上可以点的 Flex 和猫 ----------
-  const toys = { flexT: -99, catT: -99, fi: 0, ci: 0 };
+  const toys = { flexT: -99, catT: -99, fi: 0, ci: 0, pets: 0, inviting: false };
   function toyFlex(x, y, t, base) {
     const k = t - toys.flexT, act = k < 1.8;
     const hop = k < 0.5 ? Math.sin((k / 0.5) * Math.PI) * 8 : 0;
@@ -65,6 +65,14 @@
     if (p.x > pos.cx - 4 && p.x < pos.cx + 40 && p.y > pos.cy - 10 && p.y < pos.cy + 22) {
       if (t - toys.catT < 0.5) return true;
       toys.catT = t;
+      // 通关过、还没走过支线：摸到第 5 次，猫带你走
+      if (mode === 'night' && G.save.cleared && !G.hasSecret() && ++toys.pets >= 5 && !toys.inviting) {
+        toys.inviting = true; toys.pets = 0;
+        AU.sfx('meow');
+        G.achieve('cat5');
+        BRANCH.invite('title', async () => { G.layer.querySelectorAll('.title-screen').forEach((x) => x.remove()); G.resetSave(); G.achieve('cat5'); }).then(() => (toys.inviting = false));
+        return true;
+      }
       const lines = mode === 'sleep' ? T.catSleep : T.catTap;
       AU.sfx(toys.ci % 3 === 2 ? 'purr' : 'meow');
       bubble(lines[toys.ci++ % lines.length], pos.cx + 16, pos.cy - 14);
@@ -172,7 +180,7 @@
       ${done ? `<div class="done">${T.done}</div><div class="done-sub">${T.doneSub}</div>` : ''}
       <div class="menu">${has ? `<button class="btn primary cont">${T.cont}</button><button class="btn new">${T.start}</button>` : `<button class="btn primary new">${T.start}</button>`}${G.save.cleared ? `<button class="btn chap">${T.chapters}</button>` : ''}</div>
       <div class="tip">${T.tip}</div>
-      ${DEV ? `<div class="dev">${['home', 'drive', 'lab', 'boston', 'boss', 'street', 'finale'].map((s) => `<button class="btn small" data-s="${s}">${s}</button>`).join('')}<button class="btn small" data-s="hidden">隐藏结局</button><button class="btn small" data-s="unlock">解锁动画</button><button class="btn small" data-s="resetAch">清空成就</button></div>` : ''}</div>`);
+      ${DEV ? `<div class="dev">${['home', 'drive', 'lab', 'boston', 'boss', 'street', 'finale'].map((s) => `<button class="btn small" data-s="${s}">${s}</button>`).join('')}<button class="btn small" data-s="hidden">隐藏结局</button><button class="btn small" data-s="unlock">解锁动画</button><button class="btn small" data-s="resetAch">清空成就</button><br>${['hub', 'photo', 'pizza', 'coffee', 'bouquet', 'mango', 'cg'].map((s) => `<button class="btn small" data-s="br:${s}">支线·${s}</button>`).join('')}</div>` : ''}</div>`);
     const go = (scene) => { AU.unlock(); AU.sfx('select'); e.remove(); G.goto(scene); };
     e.querySelectorAll('button').forEach((b) => b.addEventListener('pointerdown', (ev) => ev.stopPropagation()));
     const nb = e.querySelector('.new');
@@ -201,9 +209,11 @@
   function devJump(s) {
     if (s === 'resetAch') { G.save.ach = {}; G.save.cleared = false; G.persist(); sessionStorage.removeItem('gwen1126-test-secret'); localStorage.removeItem('gwen1126-opened'); G.reload(); return; }
     if (s === 'unlock') { G.layer.querySelectorAll('.title-screen').forEach((x) => x.remove()); return playUnlock(); }
+    if (s.startsWith('br:')) { G.layer.querySelectorAll('.title-screen').forEach((x) => x.remove()); return BRANCH.devStart(s.slice(3)); }
     if (s !== 'hidden') return jumpTo(s);
     // 测试隐藏结局：直接到吹完蜡烛、信刚打开的时候，并临时当作成就已集齐（不写进存档）
-    if (s === 'hidden') { G.testAllAch = true; G.testHiddenPending = true; jumpTo('finale'); return; }
+    // 现在隐藏结局从支线进入：直接跳到「拍完合影、回到蛋糕旁边」那一刻
+    if (s === 'hidden') { G.layer.querySelectorAll('.title-screen').forEach((x) => x.remove()); G.resetSave(); G.scenes.finale.bgm = 'yume'; G.goto('finale', { branch: true }); return; }
   }
   // 跳到某一章：把前面章节的进度补好（试剂、剧情标记），成就保留
   function jumpTo(s) {

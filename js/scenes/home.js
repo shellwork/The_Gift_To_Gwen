@@ -248,7 +248,8 @@
   // ---------- 动态元素 ----------
   // 猫：睡着时肚子一起一伏；醒着时隔一会儿伸个懒腰、舔舔爪子
   function catAnim(ctx, t, sleeping) {
-    const x = st.catX, y = 191;
+    if (st.catGone) return;
+    const x = st.catX, y = 191 + (st.catDY || 0);
     const cyc = (t + 3) % 9;
     let dy = 0, dx = 0, lick = false;
     if (sleeping) dy = Math.sin(t * 1.6) > 0.6 ? -1 : 0;                       // 呼吸：肚子起伏 1 像素
@@ -362,6 +363,15 @@
             st.pets++; G.flags.h_pets = (G.flags.h_pets || 1) + 1; G.persist();
             await G.talk(v);
             if (G.flags.h_pets >= 5) G.achieve('cat5');
+            // 通关过一次之后：第 5 次摸猫，猫跳上窗台，带你走进隐藏支线
+            if (G.flags.h_pets >= 5 && G.save.cleared && typeof BRANCH !== 'undefined') {
+              await G.wait(300);
+              AU.sfx('meow');
+              st.catDY = st.catDY || 0;
+              await G.tween(st, { catX: 100, catDY: -47 }, 650, (k) => k * (2 - k));
+              await BRANCH.invite('home', async () => { AU.sfx('purr'); await G.tween(st, { catDY: -70 }, 200); st.catGone = true; await G.wait(300); });
+              if (!st.catGone) await G.tween(st, { catX: 452, catDY: 0 }, 600);
+            }
           }
         },
       });

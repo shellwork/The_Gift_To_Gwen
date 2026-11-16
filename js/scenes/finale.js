@@ -6,6 +6,8 @@
   const CAM = Math.min(LAB.FLEX_X + 52 - 320, LAB.W - 640);
   const CANDLES = [-24, -12, 0, 12, 24];
   let st, loungeBg = null, skyBg = null;
+  // 隐藏支线的「夜里的小蛋糕」用休息室背景
+  (window.BGS = window.BGS || {}).lounge = () => loungeBg || (loungeBg = paintLounge());
 
   const rnd = (i) => { const x = Math.sin(i * 91.7 + 17.3) * 43758.5453; return x - Math.floor(x); };
   const STARS = Array.from({ length: 170 }, (_, i) => ({ x: rnd(i) * 640, y: rnd(i + 100) * 200, s: rnd(i + 200) > 0.9 ? 2 : 1, p: rnd(i + 300) * 6, c: rnd(i + 400) > 0.8 ? '#ffe9c0' : rnd(i + 500) > 0.7 ? '#c8d8ff' : '#ffffff' }));
@@ -42,7 +44,7 @@
     k: 1, width: LAB.W, floor: LANE, minX: 40, maxX: 1200, bgm: 'night', checkpoint: true,
     grade: () => st.mode === 'lab' ? { vig: 0.34 } : st.mode === 'lounge' ? { c: '#ffb070', a: 0.12, vig: 0.3 } : st.mode === 'dream' || st.mode === 'toDream' ? { c: '#ffb3d6', a: 0.1, vig: 0.16 } : { vig: 0.24 },
     hint: () => (st.phase === 'talk' ? 'Baiding 在 Flex 旁边等你' : st.phase === 'load' ? '把试剂放进 Flex' : null),
-    setup() {
+    setup(opt = {}) {
       st = { phase: 'talk', flex: { mood: 'idle', gx: 0.5, dip: 0 }, orbs: [], cake: false, mode: 'lab', dissolve: 0, blocks: null, snap: null,
         flames: [1, 1, 1, 1, 1], out: [false, false, false, false, false], blow: 0, dark: 0, stars: null, starT: 0, rockets: [], sparks: [], flashes: [], fwT: 0,
         holding: false, sky: 0, lights: 0, glints: [], shoot: null,
@@ -55,8 +57,15 @@
       G.obj({ id: 'me', label: S.labels.me, x: 1086, y: 176, w: 28, h: 80, stand: 1066, onTap: talk, enabled: () => st.phase === 'talk' });
       G.obj({ id: 'flex', label: S.labels.flex, x: LAB.FLEX_X, y: LAB.FLEX_Y - 22, w: 104, h: 142, stand: 1000, onTap: load, enabled: () => st.phase === 'load', hint: false });
       G.setGoal('me');
+      // 从屋顶的合影接过来：第一帧就是屋顶那一刻的画面，马上开始荡开变成梦境（两个人等梦境出来再出现）
+      if (opt.branch) {
+        Object.assign(st, { mode: 'toDream', tw: 0, snap: opt.snap || null, cake: true, flames: [1, 1, 1, 1, 1], magic: true, phase: 'party', calm: true, hiddenDone: true });
+        G.gwen.visible = false; st.me.visible = false;
+        G.objects = [];
+      }
     },
-    async start() {
+    async start(opt = {}) {
+      if (opt.branch) return branchEnd(opt);
       if (G.testHiddenPending) { G.testHiddenPending = false; return testHidden(); }
       await G.wait(500);
       await G.talk(S.enter);
@@ -122,7 +131,7 @@
       else if (st.mode === 'dream') { DREAM.draw(t); DREAM.rim(G.gwen); DREAM.rim(st.me); }
       else if (st.mode === 'toDream') drawToDream(t);
       else { drawSky(t); if (st.mode === 'dissolve') drawBlocks(); }
-      if (st.cake) drawCakeTable(t);
+      if (st.cake && st.mode !== 'toDream') drawCakeTable(t);   // 转场中的蛋糕画在 drawToDream 里，跟着梦境一起浮现
     },
     drawFg(ctx, t) {
       // 梦境：天空之镜里的人物和蛋糕倒影、脚下的涟漪、两侧的近景云
@@ -579,6 +588,13 @@
     }
     if (st.flames.some((f) => f > 0)) HD.glow(x, 150, 70, '#ffcf7a', 0.12 + Math.sin(t * 9) * 0.01);
   }
+  // 隐藏支线的屋顶上也摆同一张桌子、同一个蛋糕：借一份临时的状态来画，再挪到 (dx, dy)
+  window.FIN_CAKE = (dx, dy, t, o = {}) => {
+    const keep = st;
+    st = Object.assign({ mode: 'roof', flames: [0, 0, 0, 0, 0], out: [false, false, false, false, false], magic: false, cover: 0, lamp: 0 }, o);
+    const ctx = GFX.ctx; ctx.save(); ctx.translate(dx, dy);
+    try { drawCakeTable(t); } finally { ctx.restore(); st = keep; }
+  };
   // 毛绒花束（软乎乎的玩偶花，牛皮纸包着）
   function plushBouquet(px, py) {
     alpha(0.25, () => ellipse(px, py + 1, 12, 2, '#3a2a4a'));
@@ -945,6 +961,8 @@
       card.classList.remove('turn');
       await G.wait(280);
       flipping = false;
+      // 隐藏成就「找到了这封信的另一面」：真正翻到背面的这一刻才弹出来
+      if (toBack && mode === 'reveal' && !G.hasSecret()) setTimeout(() => G.achieveSecret(), 500);
       if (toBack && !backTyped) {
         const bctl = { skip: mode === 'again' };
         const bw = (e) => { if (!e.target.closest('.dogear')) bctl.skip = true; };
@@ -958,7 +976,7 @@
     ear.addEventListener('click', (e) => {
       e.stopPropagation();
       // 没集齐成就：小角只会轻轻翘一下，翻不过去
-      if (!allAch() || (!st.hiddenDone && mode !== 'reveal')) { AU.sfx('click'); ear.classList.remove('peek'); void ear.offsetWidth; ear.classList.add('peek'); return; }
+      if (mode !== 'reveal' && !st.hiddenDone) { AU.sfx('click'); ear.classList.remove('peek'); void ear.offsetWidth; ear.classList.add('peek'); return; }
       flip();
     });
     const fb = await typeFace(front, L, ctl);
@@ -970,7 +988,8 @@
       ear.addEventListener('click', () => hint.remove(), { once: true });
       return;
     }
-    const hiddenNext = open && !st.hiddenDone;
+    // 隐藏结局改成从支线进入（跟着猫走进回忆的梦），主线读完信永远是普通结局
+    const hiddenNext = false && open;
     fb.textContent = st.hiddenDone || hiddenNext ? Hd.closeBtn : L.btn;
     fb.addEventListener('click', (e) => {
       e.stopPropagation(); AU.sfx('select'); wrap.remove();
@@ -991,6 +1010,35 @@
     AU.bgm('birthday');
     await G.wait(6000);
     openBtn();
+  }
+
+  // ---------- 支线的终点：拍完新合影，回到梦里的蛋糕旁边 → 对话 → 翻到信的背面 → 隐藏片尾 ----------
+  async function branchEnd(opt) {
+    const BR = STORY.branch;
+    G.scene.bgm = 'night';
+    G.setGoal(null); G.showRack(false); G.lock();
+    G.scene.fixedCam = true; G.camX = 0;
+    G.save.scene = 'roof'; G.persist();   // 中途退出的话，下次回到屋顶
+    DREAM.prepare();
+    G.gwen.x = CAKE_X - 100; G.gwen.dir = 1; st.me.x = CAKE_X + 96; st.me.dir = -1;
+    AU.fadeTo('yume', 2.4, 3.5, 0.6);
+    // 许完愿：屋顶像水面一样荡开，蜡烛在梦里重新亮起来（变成彩色的）
+    await toDream(opt.snap);
+    for (const a of [G.gwen, st.me]) { a.visible = true; G.burst(a.x, a.y - 40, 26, ['#ffe0f4', '#ffffff', '#ffd66b'], { speed: 60, life: 0.9, g: 0, size: 2 }); }
+    AU.sfx('heal');
+    await G.wait(1200);
+    G.gwen.face = 'surprised';
+    await G.talk(BR.dreamArrive.slice(0, 2));
+    G.gwen.face = 'happy';
+    await G.talk(BR.dreamArrive.slice(2));
+    await G.wait(600);
+    // 让她自己在梦里逛一会儿：点点天上的回忆，走到 Baiding 身边点他，才接着往下
+    st.me.face = 'happy';
+    await freeRoam();
+    st.me.face = null; G.gwen.dir = G.gwen.x < st.me.x ? 1 : -1; st.me.dir = -G.gwen.dir;
+    await G.talk(STORY.hidden.talk);
+    await G.wait(600);
+    letter('reveal');
   }
 
   // ---------- 隐藏结局 ----------
@@ -1023,13 +1071,14 @@
     G.lock();
   }
   // 进入梦境：雪夜像水面一样荡漾、慢慢变粉变透明，中间亮起柔光，星光和小爱心绕着画面旋转
-  async function toDream() {
+  // snap：从哪个画面荡开（默认是雪夜；支线里是屋顶合影那一刻）
+  async function toDream(snap) {
     st.starA = 1; G.tween(st, { starA: 0 }, 1400);
-    st.snap = document.createElement('canvas'); st.snap.width = 640; st.snap.height = 360;
-    const real = G.ctx; GFX.setCtx(st.snap.getContext('2d')); drawSky(G.t); GFX.setCtx(real);
+    if (snap) st.snap = snap;
+    else { st.snap = document.createElement('canvas'); st.snap.width = 640; st.snap.height = 360; const real = G.ctx; GFX.setCtx(st.snap.getContext('2d')); drawSky(G.t); GFX.setCtx(real); }
     Object.assign(st, { mode: 'toDream', tw: 0, darkTo: 0, hearts: true, fwT: 2.5, magic: true });
     st.flames = [0, 0, 0, 0, 0]; st.out = [false, false, false, false, false];
-    setTimeout(() => CANDLES.forEach((_, i) => setTimeout(() => { AU.sfx('blip'); G.tween(st.flames, { [i]: 1 }, 300); }, i * 260)), 2600);
+    if (st.cake) setTimeout(() => CANDLES.forEach((_, i) => setTimeout(() => { AU.sfx('blip'); G.tween(st.flames, { [i]: 1 }, 300); }, i * 260)), 2600);
     AU.sfx('whoosh');
     await G.tween(st, { tw: 1 }, 4200, (k) => k);
     Object.assign(st, { mode: 'dream', stars: null, snap: null });
@@ -1041,8 +1090,9 @@
   function drawToDream(t) {
     const k = st.tw, ctx = GFX.ctx;
     DREAM.draw(t);
+    if (st.cake) drawCakeTable(t);   // 先画梦里的桌子和蛋糕，再盖上正在荡开的旧画面，两者一起过渡
     const a = 1 - sstep(0.3, 0.85, k), amp = 3 + sstep(0, 0.6, k) * 26;
-    if (a > 0) alpha(a, () => {
+    if (a > 0 && st.snap) alpha(a, () => {
       for (let y = 0; y < 360; y += 2) {
         const off = Math.sin(y * 0.045 + t * 5) * amp * (0.6 + 0.4 * Math.sin(y * 0.011 + t * 1.7));
         ctx.drawImage(st.snap, 0, y, 640, 2, Math.round(off), y, 640, 2);

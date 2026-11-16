@@ -5,6 +5,8 @@
   const W = 1640, BASE = 244, LANE = 262;
   const rnd = (i) => { const x = Math.sin(i * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
   let st, bg = null;
+  // 隐藏支线的回忆小关也要用这条街的背景（披萨店、咖啡店）
+  (window.BGS = window.BGS || {}).street = () => bg || (bg = paint());
 
   function paint() {
     const c = document.createElement('canvas'); c.width = W; c.height = 360;
