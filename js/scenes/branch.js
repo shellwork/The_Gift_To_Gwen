@@ -593,113 +593,131 @@ const BRANCH = (() => {
 
   // ================= 4. 毕业那天：找回散落的 5 朵花（春天的草坪） =================
   let lawnBg = null;
-  const CLOUD = ['#c6d8ec', '#e2ecf6', '#f6faff', '#ffffff'];
-  const BUFF = ['#b8945e', '#c8a26a', '#d6b47c', '#e0c28c', '#ecd4a4'];   // 卡内基梅隆那种浅黄砖
-  // 一面黄砖墙：一块块砖深浅不一
-  function brickWall(x, y, w, h) {
-    R(x, y, w, h, BUFF[2]);
-    for (let r = 0; r * 3 < h; r++) for (let bx = x + (r % 2) * 4 - 4; bx < x + w; bx += 8) { const c = BUFF[1 + Math.floor(rnd(bx * 3 + r * 7) * 3)]; R(Math.max(x, bx), y + r * 3, Math.min(7, x + w - bx), 2, c); }
+  const CLOUD = ['#c8d4e6', '#e2e8f2', '#f4f6fa', '#ffffff'];
+  // 照着 CMU 的 Mall 尽头画：Hamerschlag Hall（奶油色石头、绿铜山花、正中一个大拱门、后面一座白色圆塔）
+  // 背景是匹兹堡：右边高高的 Cathedral of Learning，左边一根烟囱；草坪左边一棵大悬铃木
+  const STONE = ['#a8987a', '#bcae90', '#d0c3a6', '#ded3b8', '#ece4cc'];
+  const ROOFC = ['#7a8c84', '#93a49c', '#aebcb4', '#c4d0c8'];
+  function stoneWall(x, y, w, h) {
+    R(x, y, w, h, STONE[2]);
+    for (let r = 0; r * 6 < h; r++) { R(x, y + r * 6 + 5, w, 1, STONE[1]); for (let bx = x + (r % 2) * 9; bx < x + w; bx += 18) R(bx, y + r * 6, 1, 5, STONE[1]); }
+    HD.dith(x, y, w, h, STONE[3], 0.12);
   }
-  // 拱窗：白色石框、深色玻璃映着天空
-  function archWin(x, y, w, h) {
-    R(x - 1, y - 1, w + 2, h + 2, '#8a7458');
-    R(x, y, w, h, '#f2ead8'); circle(x + w / 2, y + 1, w / 2, '#f2ead8');
-    R(x + 1, y + 2, w - 2, h - 3, '#4a5a72'); circle(x + w / 2, y + 2, w / 2 - 1, '#4a5a72');
-    HD.dgradV(x + 1, y - 2, w - 2, h * 0.7, '#a8c4dc', 0.6, 0);
-    R(x + w / 2 - 0.5, y - 1, 1, h, '#f2ead8'); R(x + 1, y + h * 0.55, w - 2, 1, '#f2ead8');
-    R(x - 2, y + h, w + 4, 2, '#f4ecdc');
+  function arched(x, y, w, h, glass = '#3a404c') {
+    R(x - 1, y - w / 2 - 1, w + 2, h + w / 2 + 2, STONE[0]);
+    R(x, y, w, h, STONE[4]); circle(x + w / 2, y, w / 2, STONE[4]);
+    R(x + 1, y, w - 2, h - 1, glass); circle(x + w / 2, y, w / 2 - 1, glass);
+    HD.dgradV(x + 1, y - w / 2, w - 2, h * 0.6, '#8a9cb0', 0.45, 0);
+    R(x + w / 2 - 0.5, y - w / 2 + 1, 1, h + w / 2 - 2, STONE[3]); R(x + 1, y + h * 0.45, w - 2, 1, STONE[3]);
+    R(x - 1, y + h - 1, w + 2, 2, STONE[4]);
   }
-  // 一排圆圆的树冠（树干 + 三层绿）
-  function tree(x, base, s) {
-    R(x - 2 * s, base - 30 * s, 4 * s, 30 * s, '#5a4232'); R(x - 2 * s, base - 30 * s, 1.5 * s, 30 * s, '#7a5a42');
-    alpha(0.25, () => ellipse(x, base, 22 * s, 3 * s, '#2a4a2a'));
-    const blobs = Array.from({ length: 9 }, (_, i) => [x - 22 * s + rnd(i + x) * 44 * s, base - 46 * s - rnd(i + x + 3) * 30 * s, (11 + rnd(i + x + 6) * 6) * s]);
-    blobs.forEach(([bx, by, r]) => circle(bx, by + 2, r, '#2f6a3e'));
-    blobs.forEach(([bx, by, r]) => circle(bx - 1, by, r - 1, '#43884e'));
-    blobs.forEach(([bx, by, r]) => circle(bx - 3, by - 3, r * 0.55, '#62a862'));
-    blobs.forEach(([bx, by, r]) => circle(bx - 4, by - 5, r * 0.22, '#8ac67a'));
+  // 低矮的四坡屋顶（浅灰绿的金属屋面）
+  function hipRoof(x0, x1, y0, h) {
+    for (let r = 0; r < h; r++) { const inset = Math.round((h - r) * 1.6); R(x0 + inset, y0 + r, x1 - x0 - inset * 2, 1, r < 2 ? ROOFC[3] : r % 4 === 0 ? ROOFC[1] : ROOFC[2]); }
+    for (let x = x0 + 8; x < x1 - 8; x += 7) R(x, y0 + 3, 1, h - 3, ROOFC[1]);
+    R(x0 - 2, y0 + h, x1 - x0 + 4, 3, STONE[4]); R(x0 - 2, y0 + h + 3, x1 - x0 + 4, 1, STONE[0]);
+  }
+  // 悬铃木：浅色斑驳的树干 + 一大团嫩绿的树冠
+  function sycamore(x, base, s, crownOnly) {
+    if (!crownOnly) { R(x - 4 * s, base - 70 * s, 8 * s, 70 * s, '#cfc8b8'); for (let i = 0; i < 14; i++) R(x - 4 * s + rnd(i + x) * 7 * s, base - rnd(i + x + 1) * 68 * s, 3 * s, 4 * s, i % 2 ? '#a8a090' : '#e6e0d2'); line(x, base - 50 * s, x - 30 * s, base - 90 * s, '#b8b0a0'); line(x, base - 58 * s, x + 26 * s, base - 96 * s, '#b8b0a0'); alpha(0.3, () => ellipse(x, base, 34 * s, 4 * s, '#2a4a2a')); }
+    const blobs = Array.from({ length: 22 }, (_, i) => [x - 60 * s + rnd(i + x * 2) * 120 * s, base - 80 * s - rnd(i + x * 2 + 3) * 70 * s, (14 + rnd(i + x * 2 + 6) * 10) * s]);
+    blobs.forEach(([bx, by, r]) => circle(bx, by + 3, r, '#4a7a3e'));
+    blobs.forEach(([bx, by, r]) => circle(bx - 1, by, r - 1, '#6a9a4a'));
+    blobs.forEach(([bx, by, r]) => circle(bx - 4, by - 4, r * 0.6, '#8cb85e'));
+    blobs.forEach(([bx, by, r]) => circle(bx - 6, by - 7, r * 0.25, '#b4d47e'));
   }
   function paintLawn() {
     const c = document.createElement('canvas'); c.width = 640; c.height = 360;
     const real = GFX.ctx; GFX.setCtx(c.getContext('2d'));
-    // ---- 五月的晴天 ----
-    ['#6aaee6', '#74b4e8', '#80bbeb', '#8cc2ee', '#98c9f0', '#a6d0f2', '#b4d8f4', '#c4e0f6', '#d4e8f8'].forEach((col, i) => { R(0, i * 22, 640, 23, col); if (i) HD.dith(0, i * 22 - 2, 640, 2, col, 0.5); });
-    for (const [x, y, n, r] of [[30, 34, 6, 11], [420, 22, 7, 12], [560, 60, 4, 9], [190, 70, 3, 8]]) for (let i = 0; i < n; i++) DREAM.puff(x + i * r * 1.3, y + Math.sin(i * 1.9) * 4, r + (i % 2) * 4, CLOUD);
-    // 远处一排树
-    for (let i = 0; i < 44; i++) { const x = i * 15 + rnd(i) * 8, r = 10 + rnd(i + 5) * 6; circle(x, 170 - r * 0.4, r, '#4a8a5a'); circle(x - 2, 167 - r * 0.5, r * 0.6, '#5c9e6c'); }
-    // ---- 正对面：草坪尽头的 Hamerschlag Hall（黄砖楼 + 中间白色柱廊的圆塔） ----
-    const hx = 196, hw = 248, hy = 122;
-    brickWall(hx, hy, hw, 76);
-    R(hx - 3, hy - 4, hw + 6, 5, '#f4ecdc'); R(hx - 3, hy - 4, hw + 6, 1, '#ffffff'); for (let x = hx; x < hx + hw; x += 5) R(x, hy - 9, 2, 5, '#ece2cc'); R(hx - 3, hy - 10, hw + 6, 2, '#f4ecdc');
-    R(hx, hy + 36, hw, 2, '#f4ecdc');
-    for (let i = 0; i < 10; i++) { const wx = hx + 8 + i * 24; if (wx > 290 && wx < 340) continue; archWin(wx, hy + 8, 10, 22); archWin(wx, hy + 44, 10, 24); }
-    R(hx - 2, hy + 72, hw + 4, 6, '#e8dcc4');
-    // 圆塔：两层鼓座 + 一圈白色立柱 + 灰色小圆顶 + 旗杆
-    const tx = 320;
-    R(tx - 34, 80, 68, 42, '#e8dcc8');
-    for (let i = 0; i < 9; i++) { const k = i / 8, px = Math.round(tx - 30 + k * 60), shade = Math.abs(k - 0.35); R(px - 3, 84, 6, 36, '#5a5248'); R(px - 2, 84, 4, 36, shade < 0.25 ? '#ffffff' : shade < 0.45 ? '#f4ecdc' : '#d8ccb4'); }
-    R(tx - 38, 120, 76, 4, '#f4ecdc'); R(tx - 37, 78, 74, 5, '#f4ecdc'); R(tx - 37, 78, 74, 1, '#ffffff');
-    R(tx - 26, 58, 52, 20, '#efe6d4'); for (let i = 0; i < 6; i++) R(tx - 22 + i * 9, 62, 4, 12, '#6a6258'); R(tx - 28, 56, 56, 3, '#f4ecdc');
-    for (let r = 0; r < 12; r++) { const w = 50 - r * 3.6; R(tx - w / 2, 56 - r, w, 1, r < 2 ? '#a8b0b8' : r % 3 ? '#c8d0d6' : '#dce2e6'); }
-    R(tx - 3, 40, 6, 6, '#e8dcc8'); R(tx - 1, 26, 2, 16, '#5a5248'); R(tx + 1, 26, 9, 6, '#c8102e'); R(tx + 1, 28, 9, 1, '#ffffff');
-    // ---- 两侧的黄砖楼（近一点，只露出一部分） ----
-    brickWall(0, 84, 150, 120); R(0, 78, 152, 7, '#f4ecdc'); R(0, 78, 152, 1, '#ffffff');
-    for (let r = 0; r < 10; r++) R(0, 66 + r, 140 - r * 2, 1, r % 2 ? '#8a4a3a' : '#9a5a44');
-    for (let i = 0; i < 5; i++) { archWin(8 + i * 28, 98, 14, 30); archWin(8 + i * 28, 146, 14, 32); }
-    brickWall(490, 90, 150, 114); R(488, 84, 152, 7, '#f4ecdc'); R(488, 84, 152, 1, '#ffffff');
-    for (let r = 0; r < 10; r++) R(500 + r * 2, 72 + r, 140 - r * 2, 1, r % 2 ? '#8a4a3a' : '#9a5a44');
-    for (let i = 0; i < 5; i++) { archWin(500 + i * 28, 104, 14, 28); archWin(500 + i * 28, 148, 14, 30); }
-    // ---- 草坪：中间一大片往远处收窄，两边是石板路 ----
-    const VX = 320, VY = 150;
-    for (let y = 196; y < 360; y++) {
-      const half = (y - VY) * 3.3, pw = (y - VY) * 0.42, tone = (y - 196) / 164;
-      R(0, y, 640, 1, '#5aa04e');
-      for (let x = 0; x < 640; x++) {
-        const dx = x - VX;
-        if (Math.abs(dx) < half) { const st = Math.floor(((dx / (y - VY)) * 5) + 100) % 2; P(x, y, st ? (tone > 0.5 ? '#74c464' : '#6aba5a') : (tone > 0.5 ? '#68b658' : '#5eac50')); }
-        else if (Math.abs(dx) < half + pw) P(x, y, (y + x) % 7 === 0 ? '#c8bca8' : '#ddd2be');
-      }
+    // ---- 五月的天：淡淡的蓝，往下有一点薄雾 ----
+    ['#86b4e0', '#92bce4', '#9ec4e8', '#aacbea', '#b6d2ec', '#c2d8ee', '#cddeef', '#d8e4f0', '#e2e8f0'].forEach((col, i) => { R(0, i * 24, 640, 25, col); if (i) HD.dith(0, i * 24 - 2, 640, 2, col, 0.5); });
+    for (const [x, y, n, r] of [[60, 44, 5, 10], [380, 30, 6, 11], [250, 70, 3, 8]]) for (let i = 0; i < n; i++) DREAM.puff(x + i * r * 1.3, y + Math.sin(i * 1.9) * 4, r + (i % 2) * 3, CLOUD);
+    // ---- 远处的匹兹堡：一排灰蓝色的楼、一根烟囱、一座信号塔，右边是 Cathedral of Learning ----
+    for (const [x, w, h] of [[150, 40, 50], [196, 26, 64], [228, 44, 40], [392, 30, 46], [430, 50, 58], [486, 34, 38], [590, 50, 52]]) { R(x, 214 - h, w, h, '#a8b0bc'); R(x, 214 - h, w, 1, '#c0c6d0'); for (let wy = 214 - h + 5; wy < 210; wy += 6) for (let wx = x + 3; wx < x + w - 3; wx += 5) R(wx, wy, 2, 3, '#8e98a6'); }
+    R(176, 96, 12, 120, '#c8c4bc'); R(176, 96, 3, 120, '#dcd8d0'); R(176, 96, 12, 3, '#a8a49c');
+    for (let y = 110; y < 214; y += 6) { line(452, y, 458, y + 6, '#8e98a6'); line(458, y, 452, y + 6, '#8e98a6'); } R(451, 104, 1, 110, '#8e98a6'); R(458, 104, 1, 110, '#8e98a6');
+    // Cathedral of Learning：一层层收进去的哥特式高塔，竖向的细棱
+    const cx0 = 548;
+    const tiers = [[60, 214, 120], [50, 120, 70], [40, 70, 48], [30, 48, 34], [18, 34, 22]];
+    tiers.forEach(([w, bot, top]) => { R(cx0 - w / 2, top, w, bot - top, '#b4aca4'); R(cx0 - w / 2, top, 3, bot - top, '#c8c0b6'); R(cx0 + w / 2 - 3, top, 3, bot - top, '#9a928a'); for (let x = cx0 - w / 2 + 6; x < cx0 + w / 2 - 4; x += 5) R(x, top + 2, 1, bot - top - 2, '#a49c94'); });
+    R(cx0 - 1, 12, 2, 10, '#9a928a');
+    for (let y = 130; y < 210; y += 8) for (let x = cx0 - 24; x < cx0 + 24; x += 5) R(x, y, 2, 4, '#8a8278');
+    // 楼后面和两边的一排树（填满地平线到草坪之间）
+    R(0, 208, 640, 36, '#5e8e4a');
+    for (let i = 0; i < 60; i++) { const x = i * 11 + rnd(i + 400) * 6, r = 9 + rnd(i + 401) * 7; circle(x, 212 - r * 0.3, r, '#4e7e40'); circle(x - 2, 209 - r * 0.4, r * 0.65, '#6a9a52'); circle(x - 4, 206 - r * 0.5, r * 0.25, '#8cb866'); }
+    HD.dgradV(0, 186, 640, 30, '#dfe6ee', 0.5, 0);
+    // ---- 两侧的翼楼：低矮的四坡屋顶 + 一排拱窗 ----
+    for (const [x0, x1] of [[96, 262], [378, 544]]) {
+      hipRoof(x0, x1, 150, 18);
+      stoneWall(x0, 171, x1 - x0, 66);
+      R(x0, 171, x1 - x0, 3, STONE[4]);
+      for (let i = 0; i < 6; i++) arched(x0 + 12 + i * ((x1 - x0 - 24) / 6) + 1, 196, 14, 30);
+      R(x0, 228, x1 - x0, 9, STONE[1]); R(x0, 228, x1 - x0, 1, STONE[4]);
     }
-    HD.fadeV(0, 196, 640, 12, '#3a6a3a', 0.4, 0);
-    // 两排行道树，近大远小
-    for (const [x, s] of [[262, 0.45], [378, 0.45], [212, 0.6], [428, 0.6], [150, 0.8], [490, 0.8]]) tree(x, 204 + (s - 0.45) * 60, s);
-    tree(40, 236, 1.15); tree(604, 240, 1.1);
-    // 路灯
-    for (const [lx, ly, s] of [[180, 214, 0.6], [460, 214, 0.6], [92, 250, 1], [552, 250, 1]]) { R(lx - s, ly - 40 * s, 2 * s, 40 * s, '#2b2f36'); R(lx - 4 * s, ly - 48 * s, 8 * s, 8 * s, '#2b2f36'); R(lx - 3 * s, ly - 47 * s, 6 * s, 6 * s, '#fff3c9'); R(lx - 5 * s, ly - 50 * s, 10 * s, 2 * s, '#3d434c'); }
-    // 草地上零星的小雏菊、小草
-    for (let i = 0; i < 140; i++) { const x = rnd(i + 30) * 640, y = 214 + rnd(i + 31) * 120; if (rnd(i + 32) > 0.78) { R(x, y, 1, 2, '#ffffff'); R(x - 1, y + 1, 3, 1, '#ffffff'); P(x, y + 1, '#ffd23f'); } else { P(x, y, '#4e9a46'); P(x + 1, y - 1, '#4e9a46'); P(x + 2, y, '#4e9a46'); } }
-    // ---- 左前方：那道被涂了一层又一层的 The Fence ----
-    const fx = 14, fy = 214, fw = 150;
-    for (const px of [fx + 4, fx + fw - 12]) { R(px, fy - 6, 10, 56, '#c8487a'); R(px, fy - 6, 10, 2, '#ff8fb3'); circle(px + 5, fy - 6, 5, '#d85a8a'); }
-    R(fx, fy, fw, 34, '#7a3aa8'); HD.dgradV(fx, fy, fw, 34, '#ff6fae', 0, 0.9);
-    R(fx - 2, fy - 2, fw + 4, 4, '#ffd23f'); R(fx - 2, fy + 32, fw + 4, 4, '#ffd23f');
-    for (let i = 0; i < fw; i += 5) circle(fx + i, fy + 34 + (i % 3), 2.5, '#ffd23f');   // 一层层油漆鼓起来的边
-    for (const [dx, h] of [[20, 6], [56, 9], [90, 5], [128, 8]]) R(fx + dx, fy + 36, 2, h, '#ffd23f');   // 往下流的油漆
-    GFX.text('CONGRATS', fx + 22, fy + 6, '#2b2238', 2); GFX.text('CONGRATS', fx + 21, fy + 5, '#ffffff', 2);
-    GFX.text('GRADS!', fx + 36, fy + 21, '#2b2238'); GFX.text('GRADS!', fx + 35, fy + 20, '#fff6a0');
-    DREAM.heart(fx + 100, fy + 19, 2, '#ff3d7f'); DREAM.heart(fx + 120, fy + 22, 1, '#ffffff');
-    R(fx + 14, fy + 20, 12, 3, '#2b2238'); R(fx + 17, fy + 17, 6, 3, '#2b2238'); R(fx + 25, fy + 20, 1, 6, '#ffd23f');   // 学士帽
-    alpha(0.3, () => ellipse(fx + fw / 2, fy + 52, fw / 2, 4, '#1e3a1e'));
-    // 右前方：长椅
-    FX.block(520, 262, 74, 5, '#8a6a4a', { top: 3, side: 2 }); R(520, 248, 74, 4, '#7a5a3e'); R(520, 254, 74, 4, '#7a5a3e');
-    for (const lx of [524, 588]) { R(lx, 267, 3, 16, '#2b2f36'); R(lx, 250, 3, 14, '#2b2f36'); }
+    // ---- 后面的白色圆塔：高高的拱形开口 + 顶上一圈栏杆 + 更小的一层 ----
+    const tx = 320;
+    R(tx - 30, 92, 60, 22, STONE[3]); R(tx - 32, 90, 64, 3, STONE[4]);
+    R(tx - 25, 40, 50, 52, STONE[3]);
+    for (let i = 0; i < 6; i++) { const k = i / 5, ox = Math.round(tx - 22 + k * 40); const sh = Math.abs(k - 0.4); R(ox - 3, 50, 6, 36, sh < 0.2 ? '#4a4840' : '#5a5650'); circle(ox, 50, 3, sh < 0.2 ? '#4a4840' : '#5a5650'); R(ox + 3, 46, 2, 42, sh < 0.3 ? STONE[4] : STONE[2]); }
+    R(tx - 25, 40, 4, 52, STONE[4]); R(tx + 21, 40, 4, 52, STONE[1]);
+    R(tx - 28, 36, 56, 5, STONE[4]); for (let x = tx - 26; x < tx + 26; x += 3) R(x, 31, 1, 5, STONE[2]); R(tx - 28, 30, 56, 2, STONE[4]);
+    R(tx - 13, 18, 26, 13, STONE[3]); R(tx - 13, 18, 3, 13, STONE[4]); R(tx - 15, 16, 30, 3, STONE[4]); R(tx - 1, 8, 2, 9, '#7a7468');
+    // ---- 正中的门厅：绿铜边的山花、四根壁柱、一个大拱门（拱里是红色的马赛克，挂着横幅） ----
+    const px0 = 258, pw = 124;
+    for (let r = 0; r < 26; r++) { const w = pw + 8 - r * 4.8; R(tx - w / 2, 130 - r, w, 1, r < 2 ? '#4f7f6e' : STONE[3]); }
+    for (let r = 0; r < 26; r++) { const w = pw + 8 - r * 4.8; R(tx - w / 2 - 2, 130 - r, 3, 1, '#4f7f6e'); R(tx + w / 2 - 1, 130 - r, 3, 1, '#4f7f6e'); }
+    for (let r = 4; r < 22; r += 4) { const w = pw - 10 - r * 4.8; if (w > 8) R(tx - w / 2, 128 - r, w, 1, STONE[1]); }
+    R(px0 - 4, 130, pw + 8, 4, STONE[4]); R(px0 - 4, 133, pw + 8, 1, STONE[0]);
+    stoneWall(px0, 134, pw, 104);
+    for (const ox of [px0 + 2, px0 + 18, pw + px0 - 30, pw + px0 - 14]) { R(ox, 136, 12, 100, STONE[3]); R(ox, 136, 2, 100, STONE[4]); R(ox + 10, 136, 2, 100, STONE[1]); R(ox - 1, 136, 14, 3, STONE[4]); }
+    // 大拱门
+    R(tx - 26, 160, 52, 78, STONE[0]); circle(tx, 162, 26, STONE[0]);
+    R(tx - 24, 162, 48, 76, '#9a4a3e'); circle(tx, 162, 24, '#9a4a3e');
+    for (let i = 0; i < 30; i++) P(tx - 22 + rnd(i + 5) * 44, 142 + rnd(i + 6) * 90, rnd(i) > 0.5 ? '#c86a52' : '#7a3a32');
+    for (let a = 3.2; a < 6.25; a += 0.18) { R(Math.round(tx + Math.cos(a) * 21), Math.round(162 + Math.sin(a) * 21), 2, 2, '#e0b070'); }
+    R(tx - 18, 168, 36, 70, '#5a2e2a');
+    arched(tx - 10, 150, 20, 22, '#4a5260');
+    R(tx - 9, 212, 18, 26, '#2e2630'); R(tx - 1, 212, 2, 26, '#5a4a4e');
+    // 横幅：恭喜毕业（CMU 的红）
+    R(tx - 15, 176, 30, 32, '#c41230'); R(tx - 15, 176, 30, 2, '#e8475e'); R(tx - 15, 206, 30, 2, '#8a0c20');
+    GFX.text('CONGRATS', tx - 14, 182, '#ffffff'); GFX.text('GRADS', tx - 9, 192, '#ffffff'); DREAM.heart(tx - 3, 199, 1, '#ffd6e0');
+    // ---- 前面的台阶和石头矮墙 ----
+    R(80, 236, 480, 6, STONE[1]); R(80, 236, 480, 1, STONE[4]);
+    for (let k = 0; k < 4; k++) { R(tx - 34 - k * 4, 238 + k * 4, 68 + k * 8, 4, k % 2 ? STONE[2] : STONE[3]); R(tx - 34 - k * 4, 238 + k * 4, 68 + k * 8, 1, STONE[4]); }
+    for (const sx of [tx - 54, tx + 38]) { R(sx, 232, 16, 22, STONE[2]); R(sx, 232, 16, 2, STONE[4]); R(sx + 14, 232, 2, 22, STONE[0]); }
+    // ---- 草坪：一大片嫩绿，中间一条横穿的人行道，右边弯过去 ----
+    R(0, 242, 640, 118, '#6aa84e');
+    for (let i = 0; i < 9; i++) { const y = 246 + i * 13; R(0, y, 640, 13, i % 2 ? '#72b056' : '#66a44a'); HD.dith(0, y, 640, 2, i % 2 ? '#66a44a' : '#72b056', 0.5); }
+    HD.fadeV(0, 242, 640, 10, '#3a6a32', 0.4, 0);
+    R(0, 254, 640, 9, '#d6d0c4'); R(0, 254, 640, 1, '#ece8de'); R(0, 262, 640, 1, '#b4ae a0'.replace(' ', ''));
+    for (let x = 0; x < 640; x += 26) R(x, 255, 1, 7, '#c4beb2');
+    for (let y = 263; y < 360; y++) { const w = 26 + (y - 263) * 0.5; R(tx - w / 2, y, w, 1, y % 5 ? '#d6d0c4' : '#c8c2b6'); }
+    // 草地上的小雏菊和小草
+    for (let i = 0; i < 120; i++) { const x = rnd(i + 30) * 640, y = 268 + rnd(i + 31) * 84; if (Math.abs(x - tx) < 30) continue; if (rnd(i + 32) > 0.78) { R(x, y, 1, 2, '#ffffff'); R(x - 1, y + 1, 3, 1, '#ffffff'); P(x, y + 1, '#ffd23f'); } else { P(x, y, '#4e8a3e'); P(x + 1, y - 1, '#4e8a3e'); P(x + 2, y, '#4e8a3e'); } }
+    // 路边的长椅和黑色路灯
+    FX.block(520, 270, 70, 5, '#8a6a4a', { top: 3, side: 2 }); R(520, 256, 70, 4, '#7a5a3e'); R(520, 262, 70, 4, '#7a5a3e');
+    for (const lx of [524, 584]) { R(lx, 275, 3, 14, '#2b2f36'); R(lx, 258, 3, 14, '#2b2f36'); }
+    for (const lx of [196, 446]) { R(lx, 214, 2, 42, '#2b2f36'); R(lx - 3, 206, 8, 9, '#2b2f36'); R(lx - 2, 207, 6, 7, '#fff3c9'); R(lx - 4, 204, 10, 2, '#3d434c'); }
+    // 左边一棵大悬铃木（只露出一部分，框住画面），右边一棵小一点的
+    sycamore(46, 262, 1.25);
+    sycamore(618, 252, 0.8);
     // 最前面一排郁金香
     for (let i = 0; i < 46; i++) { const x = 6 + i * 14 + rnd(i) * 5, y = 344 + rnd(i + 3) * 8, col = ['#ff6f9a', '#ffd23f', '#b9a3d6', '#ff9a6a', '#ffffff'][i % 5]; R(x, y, 1, 14, '#3c7e4c'); R(x - 3, y + 5, 3, 2, '#5c9e6c'); R(x + 1, y + 7, 3, 2, '#5c9e6c'); R(x - 3, y - 6, 7, 6, '#2b2238'); R(x - 2, y - 5, 5, 5, col); R(x - 2, y - 6, 1, 2, col); R(x + 2, y - 6, 1, 2, col); P(x - 1, y - 4, '#ffffff'); }
     GFX.setCtx(real);
     return FX.bake(c, FX.BAKE.street);
   }
-  // 风里飘着的小花瓣和蒲公英绒毛
+  // 风里飘着的小花瓣和悬铃木的绒毛
   function petals(t) {
     for (let i = 0; i < 22; i++) { const sp = 10 + rnd(i) * 10, y = (rnd(i + 40) * 360 + t * sp) % 380 - 20, x = (rnd(i + 80) * 700 + Math.sin(t * 0.9 + i) * 20 + t * 10) % 680 - 20; if (i % 3) { R(x, y, 2, 1, i % 2 ? '#ffd6e6' : '#fff6e0'); } else { P(x, y, '#ffffff'); P(x - 1, y, '#ffffff'); P(x + 1, y, '#ffffff'); P(x, y - 1, '#ffffff'); } }
   }
-  const WRAP = { x: 402, y: 226 };
+  const WRAP = { x: 396, y: 226 };
   level('bouquet', {
-    bg: () => lawnBg || (lawnBg = paintLawn()), ox: 0, lane: 270, filter: 'sepia(.15) saturate(1.1) brightness(1.04)', note: [552, 238],
-    gx: 330, gdir: 1,
+    bg: () => lawnBg || (lawnBg = paintLawn()), ox: 0, lane: 270, filter: 'sepia(.15) saturate(1.1) brightness(1.04)', note: [556, 248],
+    gx: 236, gdir: 1,
     setup(st) {
-      st.me = G.actor({ sprite: 'me', x: 414, y: 270, dir: -1, seed: 0.7 });
+      st.me = G.actor({ sprite: 'me', x: 408, y: 270, dir: -1, seed: 0.7 });
       const C = [['#f7a8c4', '#ff7aa8'], ['#ffd23f', '#e8a020'], ['#b9a3d6', '#8a6ab8'], ['#fff6fa', '#e8c8d8'], ['#ffb38a', '#e8704a']];
-      const AT = [[44, 172], [606, 176], [300, 193], [70, 207], [468, 302]];
+      const AT = [[92, 120], [610, 150], [180, 162], [372, 246], [468, 306]];
       st.flowers = AT.map(([x, y], i) => ({ x, y, c: C[i], p: i * 1.3, got: false, fly: null }));
       st.n = 0;
     },
