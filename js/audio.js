@@ -2,6 +2,12 @@
 const AU = (() => {
   let ctx = null, master, musicBus, sfxBus, noiseBuf;
   let muted = localStorage.getItem('gwen1126-mute') === '1';
+  // 音乐 / 音效的音量倍数（游戏选项里调），在总线建好之前也先记着
+  const vol = { music: 1, sfx: 1 };
+  // 听过的曲子（音乐盒里只放听过的）
+  const HKEY = 'gwen1126-heard';
+  const heardSet = () => { try { return new Set(JSON.parse(localStorage.getItem(HKEY) || '[]')); } catch (e) { return new Set(); } };
+  function markHeard(name) { try { const h = heardSet(); if (!h.has(name)) { h.add(name); localStorage.setItem(HKEY, JSON.stringify([...h])); } } catch (e) {} }
   let cur = null, timer = null, nextT = 0, step = 0, trackName = null, pending = null;
 
   const NOTE = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
@@ -20,8 +26,8 @@ const AU = (() => {
       // 部署版的密码盘在点按键时就建好了 AudioContext（那时有用户点击，已经是可播放状态），这里直接接着用
       ctx = window.__AC || new AC();
       master = ctx.createGain(); master.gain.value = muted ? 0 : 0.6; master.connect(ctx.destination);
-      musicBus = ctx.createGain(); musicBus.gain.value = 0.55; musicBus.connect(master);
-      sfxBus = ctx.createGain(); sfxBus.gain.value = 0.9; sfxBus.connect(master);
+      musicBus = ctx.createGain(); musicBus.gain.value = 0.55 * vol.music; musicBus.connect(master);
+      sfxBus = ctx.createGain(); sfxBus.gain.value = 0.9 * vol.sfx; sfxBus.connect(master);
       noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
       const d = noiseBuf.getChannelData(0);
       for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
@@ -177,6 +183,7 @@ const AU = (() => {
     if (!ctx) { pending = name; return; }
     initMusic();
     trackName = name;
+    markHeard(name);
     const T = (cur = TRACKS[name]);
     if (!T) return;
     const out = (trackGain = ctx.createGain()); out.connect(musicBus);
@@ -235,6 +242,11 @@ const AU = (() => {
     setTimeout(() => { if (!trackName) bgm(name, undefined, fadeIn); }, gap * 1000);
   }
 
+  function setVol(kind, v) {
+    vol[kind] = v;
+    if (kind === 'music' && musicBus) musicBus.gain.setTargetAtTime(0.55 * v, ctx.currentTime, 0.05);
+    if (kind === 'sfx' && sfxBus) sfxBus.gain.setTargetAtTime(0.9 * v, ctx.currentTime, 0.05);
+  }
   function setMuted(m) {
     muted = m; localStorage.setItem('gwen1126-mute', m ? '1' : '0');
     if (master) master.gain.value = m ? 0 : 0.6;
@@ -278,7 +290,8 @@ const AU = (() => {
   function blip(f) { if (!ctx || muted) return; tone(f * (0.97 + Math.random() * 0.06), ctx.currentTime, 0.032, { vol: 0.022, type: f > 1200 ? 'triangle' : 'square' }); }
 
   return {
-    unlock, sfx, bgm, stopBgm, fadeTo, crossTo, setMuted, startMic, blip,
+    unlock, sfx, bgm, stopBgm, fadeTo, crossTo, setMuted, setVol, startMic, blip,
+    heard: () => heardSet(), trackInfo: (n) => { const T = TRACKS[n]; return T ? { beats: T.beats, bpm: T.bpm, start: T.start || 0 } : null; },
     get muted() { return muted; },
     get running() { return !!ctx && ctx.state === 'running'; },
     get mic() { return mic; },

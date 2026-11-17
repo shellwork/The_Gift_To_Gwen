@@ -540,6 +540,7 @@ const BRANCH = (() => {
         else { x = o.hx + Math.sin(t * 0.7 + o.p) * 16; y = o.hy + Math.sin(t * 1.1 + o.p * 2) * 8; HD.glow(x, y, 14, '#fff3c9', 0.3); }
         o.cx = x; o.cy = y;
         topping(o.kind, Math.round(x), Math.round(y), o.placed);
+        if (!o.placed && !o.fly && st.playing) arrow(x, y - 8, t, o.p);
       });
     },
   });

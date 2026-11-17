@@ -1151,6 +1151,7 @@
     });
     el.addEventListener('pointerup', () => (speed = 1));
     const step = (now) => {
+      if (!el.isConnected) return;   // 中途从菜单回到标题了
       const dt = (now - last) / 1000; last = now;
       if (now > pauseUntil) y = Math.min(total, y + dt * speed * el.offsetHeight * 0.075);
       roll.style.transform = `translateY(${-y}px)`;
@@ -1180,6 +1181,7 @@
     p.querySelector('.close').addEventListener('click', () => { AU.sfx('click'); p.remove(); });
   }
 
+  G.achPanel = achPanel;   // 游戏里右上角菜单的「成就」也用这个
   function finalButtons() {
     const C = STORY.credits;
     const b = G.el(`<div class="final-btns"><button class="btn re">${C.reread}</button><button class="btn ach">${C.achBtn}</button><button class="btn primary replay">${st.hiddenDone ? C.toTitle : C.replay}</button></div>`);

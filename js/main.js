@@ -85,7 +85,7 @@
   // 通关隐藏结局之后，标题页换成「梦的世界」
   const doneAll = () => G.hasSecret();
   G.def('title', {
-    k: 1, width: 640, noWalk: true, fixedCam: true, bgm: 'title',
+    k: 1, width: 640, noWalk: true, fixedCam: true, bgm: 'title', menuless: true,
     draw(ctx, t) { if (doneAll()) { DREAM.draw(t, { floor: 292 }); toyFlex(476, 168, t, 'love'); toyCat(424, 272, t, false); } else nightBg(t, 'idle'); },
     drawFg(ctx, t) {
       if (doneAll()) { DREAM.reflect(() => { toyFlex(476, 168, t, 'love'); toyCat(424, 272, t, false); }, 292); DREAM.drawFg(t, { floor: 292, ripples: [{ x: 528, y: 292 }] }); }
@@ -94,7 +94,7 @@
     onTap(p) { if (doneAll() && DREAM.tap(p)) return true; return doneAll() ? toyTap(p, { fx: 476, fy: 168, cx: 424, cy: 272 }, 'dream') : toyTap(p, { fx: 476, fy: 150, cx: 424, cy: 254 }, 'night'); },
   });
   G.def('countdown', {
-    k: 1, width: 640, noWalk: true, fixedCam: true, bgm: 'title',
+    k: 1, width: 640, noWalk: true, fixedCam: true, bgm: 'title', menuless: true,
     draw(ctx, t) {
       nightBg(t, 'sleep');
       for (const [o, sc, x0, y0] of [[0, 4, 600, 140], [12, 2, 592, 132]]) { const z = (t * 8 + o) % 24; alpha(1 - z / 24, () => text(o ? 'z' : 'Z', x0 + z, y0 - z * 2, '#c9bfe8', sc)); }
@@ -106,7 +106,7 @@
   // 倒计时归零 → 锁打开 → Flex 醒来、屏幕亮起打勾 → 猫醒了 → 彩带 → 「实验开始」→ 进入标题页
   const un = { flex: 'sleep', cat: true, t0: 0 };
   G.def('unlock', {
-    k: 1, width: 640, noWalk: true, fixedCam: true, bgm: null,
+    k: 1, width: 640, noWalk: true, fixedCam: true, bgm: null, menuless: true,
     draw(ctx, t) {
       if (!bg) bg = paintBg();
       GFX.ctx.drawImage(bg, 0, 0);
@@ -190,6 +190,7 @@
     e.querySelectorAll('.dev button').forEach((b) => b.addEventListener('click', () => { e.remove(); devJump(b.dataset.s); }));
     const ch = e.querySelector('.chap');
     if (ch) ch.addEventListener('click', () => { AU.unlock(); AU.sfx('select'); chapterPanel(e); });
+    musicBox();
   }
 
   // 章节选择（通关后才有）：每章后面标出这一章的成就拿到了几个，方便补齐
@@ -290,6 +291,106 @@
     await G.trans('mosaic', false, 600);
     while (G.locked) G.unlock();   // 结局里加过好几层锁，回到标题要全部解开，不然点不了 Flex 和猫
   };
+
+
+  // ================= 游戏里右上角的菜单（齿轮）：游戏选项 / 成就 / 回到标题 =================
+  const UI = document.querySelector('#ui');
+  const OKEY = 'gwen1126-opts';
+  const VOLS = [0, 0.45, 1, 1.45], TEXT_MS = [48, 32, 18];
+  const opts = (() => { const d = { music: 2, sfx: 2, text: 1 }; try { return Object.assign(d, JSON.parse(localStorage.getItem(OKEY) || '{}')); } catch (e) { return d; } })();
+  function applyOpts() { AU.setVol('music', VOLS[opts.music]); AU.setVol('sfx', VOLS[opts.sfx]); G.textMs = TEXT_MS[opts.text]; try { localStorage.setItem(OKEY, JSON.stringify(opts)); } catch (e) {} }
+  applyOpts();
+  const stopAll = (w) => w.addEventListener('pointerdown', (e) => e.stopPropagation());
+  function optionsPanel() {
+    const M = STORY.menu;
+    const seg = (key, labels) => `<div class="opt-row"><span class="opt-k">${M[key]}</span><span class="seg">${labels.map((l, i) => `<button class="seg-b${opts[key] === i ? ' on' : ''}" data-k="${key}" data-v="${i}">${l}</button>`).join('')}</span></div>`;
+    const w = G.el(`<div class="menu-wrap"><div class="panel opt-panel"><div class="t">${M.optTitle}</div>${seg('music', M.levels)}${seg('sfx', M.levels)}${seg('text', M.speeds)}<button class="btn small close">${M.done}</button></div></div>`, UI);
+    stopAll(w);
+    w.querySelectorAll('.seg-b').forEach((b) => b.addEventListener('click', () => {
+      const k = b.dataset.k; opts[k] = +b.dataset.v; applyOpts();
+      w.querySelectorAll(`.seg-b[data-k="${k}"]`).forEach((x) => x.classList.toggle('on', x === b));
+      AU.sfx('select');
+    }));
+    w.querySelector('.close').addEventListener('click', () => { AU.sfx('click'); w.remove(); });
+  }
+  const menuBtn = document.querySelector('#btn-menu');
+  const closeMenu = () => UI.querySelectorAll('.game-menu').forEach((x) => x.remove());
+  function openMenu() {
+    if (UI.querySelector('.game-menu')) return closeMenu();
+    const M = STORY.menu;
+    const w = G.el(`<div class="menu-wrap game-menu"><div class="panel gm-panel">
+      <button class="btn gm-b" data-a="opt">${M.options}</button><button class="btn gm-b" data-a="ach">${M.ach}</button><button class="btn gm-b" data-a="title">${M.toTitle}</button>
+      <button class="btn small gm-close">${M.close}</button></div></div>`, UI);
+    w.addEventListener('pointerdown', (e) => { e.stopPropagation(); if (e.target === w) closeMenu(); });
+    w.querySelector('.gm-close').addEventListener('click', () => { AU.sfx('click'); closeMenu(); });
+    w.querySelector('[data-a="opt"]').addEventListener('click', () => { AU.sfx('select'); closeMenu(); optionsPanel(); });
+    w.querySelector('[data-a="ach"]').addEventListener('click', () => { AU.sfx('select'); closeMenu(); if (G.achPanel) G.achPanel(); });
+    w.querySelector('[data-a="title"]').addEventListener('click', () => {
+      AU.sfx('select');
+      const p = w.querySelector('.gm-panel');
+      p.innerHTML = `<div class="gm-q">${M.confirm}</div><div class="gm-row"><button class="btn primary gm-yes">${M.yes}</button><button class="btn gm-no">${M.no}</button></div>`;
+      p.querySelector('.gm-no').addEventListener('click', () => { AU.sfx('click'); closeMenu(); });
+      p.querySelector('.gm-yes').addEventListener('click', () => {
+        AU.sfx('select'); closeMenu();
+        // 进度在每章开头和各种小事件里已经自动存好了；这里作废还在跑的剧情，然后回到标题
+        G.abort(); G.onPointer = null; G.onPointerUp = null; G.onKey = null; G.onKeyUp = null; G.onKeyHold = null;
+        G.backToTitle();
+      });
+    });
+  }
+  menuBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
+  menuBtn.addEventListener('click', (e) => { e.stopPropagation(); AU.unlock(); AU.sfx('click'); openMenu(); });
+
+  // ================= 标题页的音乐盒：可以收起 / 展开的小播放器，只放听到过的曲子 =================
+  const MB_OPEN = 'gwen1126-mbox-open';
+  function musicBox() {
+    const MB = STORY.musicBox, heard = AU.heard();
+    const list = MB.tracks.filter(([k]) => heard.has(k) || k === G.scenes.title.bgm);
+    if (!list.length) return;
+    let idx = Math.max(0, list.findIndex(([k]) => k === (AU.current || G.scenes.title.bgm)));
+    let playing = true, elapsed = 0, last = performance.now();
+    let open = false; try { open = localStorage.getItem(MB_OPEN) === '1'; } catch (e) {}
+    const left = MB.tracks.length - list.length;
+    const w = G.el(`<div class="mbox${open ? ' open' : ''}">
+      <button class="mb-mini" aria-label="${MB.title}"><span class="mb-disc"><i></i></span><span class="mb-mname"></span></button>
+      <div class="mb-body">
+        <div class="mb-head"><span class="mb-disc big"><i></i></span><div class="mb-info"><div class="mb-t">${MB.title} · ${MB.count.replace('{n}', list.length).replace('{m}', MB.tracks.length)}</div><div class="mb-name"></div></div><button class="mb-fold" aria-label="收起">▾</button></div>
+        <div class="mb-bar"><i></i></div>
+        <div class="mb-ctl"><button class="mb-prev">◀◀</button><button class="mb-play"></button><button class="mb-next">▶▶</button></div>
+        <div class="mb-list">${list.map(([k, n], i) => `<button class="mb-row" data-i="${i}"><span class="mb-no">${String(i + 1).padStart(2, '0')}</span>${n}</button>`).join('')}${left ? `<div class="mb-more">${MB.more.replace('{k}', left)}</div>` : ''}</div>
+      </div></div>`);
+    stopAll(w);
+    const sync = () => {
+      const name = list[idx][1];
+      w.querySelector('.mb-name').textContent = name; w.querySelector('.mb-mname').textContent = name;
+      w.querySelector('.mb-play').textContent = playing ? '||' : '▶';
+      w.classList.toggle('playing', playing);
+      w.querySelectorAll('.mb-row').forEach((r) => r.classList.toggle('on', +r.dataset.i === idx));
+    };
+    const dur = () => { const T = AU.trackInfo(list[idx][0]); return T ? ((T.beats - T.start) * 60) / T.bpm : 60; };
+    const play = (i) => { idx = (i + list.length) % list.length; elapsed = 0; playing = true; AU.unlock(); AU.crossTo(list[idx][0], 0.6, 0.8); G.scenes.title.bgm = list[idx][0]; sync(); const r = w.querySelector(`.mb-row[data-i="${idx}"]`); if (r) r.scrollIntoView({ block: 'nearest' }); };
+    const setOpen = (o) => { open = o; w.classList.toggle('open', o); try { localStorage.setItem(MB_OPEN, o ? '1' : '0'); } catch (e) {} AU.sfx('click'); };
+    w.querySelector('.mb-mini').addEventListener('click', () => setOpen(true));
+    w.querySelector('.mb-fold').addEventListener('click', () => setOpen(false));
+    w.querySelector('.mb-prev').addEventListener('click', () => { AU.sfx('click'); play(idx - 1); });
+    w.querySelector('.mb-next').addEventListener('click', () => { AU.sfx('click'); play(idx + 1); });
+    w.querySelector('.mb-play').addEventListener('click', () => {
+      AU.unlock();
+      if (playing) { playing = false; AU.stopBgm(0.5); } else { playing = true; AU.crossTo(list[idx][0], 0.3, 0.6); }
+      sync();
+    });
+    w.querySelectorAll('.mb-row').forEach((r) => r.addEventListener('click', () => { AU.sfx('select'); play(+r.dataset.i); }));
+    sync();
+    // 一首放完一遍就自动换下一首（按列表顺序循环）
+    const iv = setInterval(() => {
+      if (!w.isConnected) { clearInterval(iv); return; }
+      const now = performance.now(), dt = (now - last) / 1000; last = now;
+      if (playing && AU.running) elapsed += dt;
+      const d = dur();
+      w.querySelector('.mb-bar i').style.width = Math.min(100, (elapsed / d) * 100) + '%';
+      if (playing && elapsed >= d) play(idx + 1);
+    }, 250);
+  }
 
   G.start();
   gate(() => {

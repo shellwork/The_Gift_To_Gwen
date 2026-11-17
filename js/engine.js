@@ -57,7 +57,8 @@ const G = (() => {
   // ---------- helpers ----------
   // 快进（通关后第二遍才有）：等待时间缩短，对话一下打完并自动翻页
   G.ff = false;
-  G.wait = (ms) => new Promise((r) => setTimeout(r, G.ff ? ms * 0.3 : ms));
+  G.epoch = 0;   // 从菜单回到标题时 +1：之前还在跑的剧情（等待、补间、转场）就不会再继续
+  G.wait = (ms) => new Promise((r) => { const e = G.epoch; setTimeout(() => { if (e === G.epoch) r(); }, G.ff ? ms * 0.3 : ms); });
   G.clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   G.lock = () => G.lockN++;
   G.unlock = () => (G.lockN = Math.max(0, G.lockN - 1));
@@ -133,7 +134,7 @@ const G = (() => {
       i++; dText.textContent = chars.slice(0, i).join('');
       if (who && i % 2 === 0) AU.blip(VOICE[who] || 880);
       if (i >= chars.length) finish();
-    }, opt.speed || 32);
+    }, opt.speed || G.textMs || 32);
   });
   function advanceDialog() {
     if (!dState) return false;
@@ -267,12 +268,12 @@ const G = (() => {
     }
   }
   G.trans = (type, out, ms = 500, at) => new Promise((res) => {
-    const t0 = performance.now();
+    const t0 = performance.now(), ep = G.epoch;
     const c = at ? [Math.round((at.x / W) * 128), Math.round((at.y / H) * 72)] : [64, 36];
     const step = () => {
       const k = Math.min(1, (performance.now() - t0) / ms), e = out ? k : 1 - k;
       drawTrans(type, e, c[0], c[1]);
-      if (k < 1) requestAnimationFrame(step); else res();
+      if (k < 1) requestAnimationFrame(step); else if (ep === G.epoch) res();
     };
     step();
   });
@@ -332,6 +333,7 @@ const G = (() => {
     $('#tip').classList.add('hidden');
     const s = G.scenes[name];
     G.scene = s; G.camX = 0; G.gwen = null;
+    const mb = $('#btn-menu'); if (mb) mb.classList.toggle('hidden', !!s.menuless);
     K = s.k || 2; W = CW / K; H = CH / K;
     if (s.checkpoint) { G.save.scene = name; G.persist(); }
     if (s.bgm !== undefined && s.bgm !== nextBgm) AU.crossTo(s.bgm);   // setup 前又改了曲子的情况
@@ -578,6 +580,15 @@ const G = (() => {
   // 声音还没开的时候点喇叭按钮，是想「打开声音」，不要反手把它静音
   muteBtn.addEventListener('click', (e) => { e.stopPropagation(); const justWoke = performance.now() - wokeAt < 1500; AU.unlock(); if (!(justWoke && !AU.muted)) AU.setMuted(!AU.muted); syncMute(); });
   syncMute();
+
+  // 作废当前剧情：关掉对话和选项，清掉补间，旧的 await 都不会再往下走
+  G.abort = () => {
+    G.epoch++;
+    tweens.length = 0; tapWaiter = null;
+    if (dState) { clearInterval(dState.iv); dState = null; }
+    dlg.classList.add('hidden'); subEl.classList.add('hidden'); choicesEl.classList.add('hidden'); choicesEl.innerHTML = '';
+    G.typing = false; G.speaker = null;
+  };
 
   G.start = () => { GFX.build(); HD.build(); resize(); G.syncFF(); requestAnimationFrame(frame); };
   G.layer = layer;
