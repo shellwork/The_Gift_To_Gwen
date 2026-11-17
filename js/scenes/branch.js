@@ -44,6 +44,11 @@ const BRANCH = (() => {
     AU.sfx('pickup');
     return new Promise((res) => p.querySelector('button').addEventListener('click', (e) => { e.stopPropagation(); AU.sfx('click'); p.remove(); res(); }));
   }
+  // 进过一次支线之后，成就界面里才会出现「制作手记」（和隐藏成就一样，之前完全看不到）
+  const SKEY = 'gwen1126-branch';
+  const seen = () => { try { return localStorage.getItem(SKEY) === '1' || Object.keys(notes()).length > 0; } catch (e) { return false; } };
+  const markSeen = () => { try { localStorage.setItem(SKEY, '1'); } catch (e) {} };
+  const unread = (k) => KEYS.includes(k) && seen() && !notes()[k];
   async function takeNote(k) {
     const n = notes(); n[k] = 1; try { localStorage.setItem(NKEY, JSON.stringify(n)); } catch (e) {}
     await showNote(k);
@@ -66,6 +71,7 @@ const BRANCH = (() => {
     const c = await G.choose(S.ask, [S.yes, S.no]);
     if (c !== 0) { await G.talk(S.decline); return false; }
     if (onCat) await onCat();
+    markSeen();
     G.flags.br = {};
     G.persist();
     AU.sfx('whoosh');
@@ -925,11 +931,16 @@ const BRANCH = (() => {
 
   // 开发用：直接进支线 / 某一关 / 直接拍合影
   function devStart(where) {
+    markSeen();
     G.resetSave(); G.flags.br = { intro: true };
     if (where === 'cg') { KEYS.forEach((k) => (flags()[k] = true)); G.persist(); G.goto('br_cg'); return; }
     if (where && where !== 'hub') { G.goto('br_' + where); return; }
     G.flags.br = {}; G.persist(); G.goto('roof');
   }
 
-  return { invite, devStart, KEYS };
+  // 梦里（隐藏结局、通关后的标题页）：点到还没看过手记的那几件回忆，就打开那张手记
+  DREAM.mark = unread;
+  DREAM.onMem = (k) => { if (!unread(k)) return false; takeNote(k); return true; };
+
+  return { invite, devStart, KEYS, notes, showNote, seen };
 })();

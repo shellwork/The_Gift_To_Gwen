@@ -1167,9 +1167,16 @@
       : `<div class="row off" data-k="${k}"><span class="n">？？？</span><span class="d">点击查看提示</span></div>`).join('');
     const n = Object.keys(STORY.achievements).filter((k) => G.save.ach[k]).length;
     const SA = STORY.secretAch, srow = G.hasSecret() ? `<div class="row on secret"><span class="n">♥ ${SA.name}</span><span class="d">${SA.desc}</span></div>` : '';
-    const p = G.el(`<div class="ach-panel-wrap"><div class="panel ach-panel"><div class="t">${C.achTitle} ${n} / ${Object.keys(STORY.achievements).length}</div><div class="list">${srow}${rows}</div><div class="foot">${C.achKeep}</div><button class="btn small close">关闭</button></div></div>`);
+    // 制作手记：进过隐藏支线之后才会出现；看过的点一下可以重新看，没看过的只给一句提示
+    const BR = STORY.branch, rd = typeof BRANCH !== 'undefined' && BRANCH.seen() ? BRANCH.notes() : null;
+    const nrows = rd ? `<div class="sec">${BR.noteTitle} ${BRANCH.KEYS.filter((k) => rd[k]).length} / ${BRANCH.KEYS.length}</div>` + BRANCH.KEYS.map((k) => rd[k]
+      ? `<div class="row on note" data-n="${k}"><span class="n">✎ ${BR.portals[k]}</span><span class="d">${BR.noteRead}</span></div>`
+      : `<div class="row off note-off" data-n="${k}"><span class="n">✎ ？？？</span><span class="d">点击查看提示</span></div>`).join('') : '';
+    const p = G.el(`<div class="ach-panel-wrap"><div class="panel ach-panel"><div class="t">${C.achTitle} ${n} / ${Object.keys(STORY.achievements).length}</div><div class="list">${srow}${rows}${nrows}</div><div class="foot">${C.achKeep}</div><button class="btn small close">关闭</button></div></div>`);
     p.addEventListener('pointerdown', (e) => e.stopPropagation());
-    p.querySelectorAll('.row.off').forEach((r) => r.addEventListener('click', () => { AU.sfx('select'); r.querySelector('.d').textContent = '提示：' + STORY.achievements[r.dataset.k].hint; r.classList.add('shown'); }));
+    p.querySelectorAll('.row.off:not(.note-off)').forEach((r) => r.addEventListener('click', () => { AU.sfx('select'); r.querySelector('.d').textContent = '提示：' + STORY.achievements[r.dataset.k].hint; r.classList.add('shown'); }));
+    p.querySelectorAll('.row.note-off').forEach((r) => r.addEventListener('click', () => { AU.sfx('select'); r.querySelector('.d').textContent = '提示：' + BR.noteHint.replace('{name}', BR.portals[r.dataset.n]); r.classList.add('shown'); }));
+    p.querySelectorAll('.row.note').forEach((r) => r.addEventListener('click', () => BRANCH.showNote(r.dataset.n)));
     p.querySelector('.close').addEventListener('click', () => { AU.sfx('click'); p.remove(); });
   }
 

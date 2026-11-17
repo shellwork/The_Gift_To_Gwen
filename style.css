@@ -507,3 +507,9 @@ button { font-family: inherit; }
 .cg-wrap.ready .cg-tap { opacity: 1; animation: blinkSoft 1.6s infinite; }
 .cg-wrap.out { opacity: 0; }
 @keyframes blinkSoft { 50% { opacity: .35; } }
+
+/* 成就界面里的「制作手记」 */
+.ach-panel .sec { margin-top: calc(var(--u) * 3); padding-top: calc(var(--u) * 3); border-top: calc(var(--u) * .5) dashed #e0c8a0; color: #b07a3a; font-size: var(--fs2); text-align: center; }
+.ach-panel .row.note { background: #fff8e8; border-color: #e8c890; cursor: pointer; }
+.ach-panel .row.note .n { color: #a0682a; }
+.ach-panel .row.note:hover { background: #fff0d0; }

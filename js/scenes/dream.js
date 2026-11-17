@@ -155,7 +155,10 @@ const DREAM = (() => {
       if (hv) {
         // 悬停：往上浮起一点，周围有一圈转动的星光
         for (let k = 0; k < 6; k++) { const a = t * 2.4 + k * 1.047, rx = c.width * 0.75 + 4, ry = c.height * 0.6 + 4; const sx = Math.round(cx + Math.cos(a) * rx), sy = Math.round(cy - lift + Math.sin(a) * ry); R(sx, sy, 2, 2, k % 2 ? '#ffffff' : '#ffd6ee'); }
-      } else if (Math.sin(t * 1.7 + m.p * 3) > 0.96) { R(q.x + c.width, q.y - 2, 1, 5, '#ffffff'); R(q.x + c.width - 2, q.y, 5, 1, '#ffffff'); }
+      }
+      // 还没看过的制作手记：物件右上角一张一闪一闪的小纸条
+      if (api.mark && api.mark(m.k)) { const nx = q.x + c.width - 2, ny = q.y - 8 - lift + Math.round(Math.sin(t * 3 + m.p) * 1.5); HD.glow(nx + 4, ny + 3, 10, '#fff3c9', 0.45); R(nx - 1, ny - 1, 10, 8, '#2b2238'); R(nx, ny, 8, 6, '#fff8e8'); R(nx + 5, ny, 3, 2, '#e8d8b8'); R(nx + 1, ny + 3, 4, 1, '#c8b8a0'); }
+      if (hv) {} else if (Math.sin(t * 1.7 + m.p * 3) > 0.96) { R(q.x + c.width, q.y - 2, 1, 5, '#ffffff'); R(q.x + c.width - 2, q.y, 5, 1, '#ffffff'); }
     });
     // 往上飘的小光点
     for (let i = 0; i < 18; i++) { const sp = 8 + rnd(i + 70) * 12, y = floor - ((t * sp + rnd(i + 80) * 300) % 300), x = rnd(i + 90) * 640 + Math.sin(t * 0.8 + i) * 8; const a = Math.min(1, (floor - y) / 60) * 0.8; if (i % 3 === 0) alpha(a, () => heart(x, y, 1, HEART_C[i % HEART_C.length])); else alpha(a * 0.8, () => R(x, y, 2, 2, '#fff4fa')); }
@@ -224,7 +227,8 @@ const DREAM = (() => {
     G.burst(h.q.x + h.c.width / 2, h.q.y + h.c.height / 2, 12, ['#ffe0f4', '#ffffff', '#ffd66b'], { speed: 40, life: 0.7, g: 0, size: 1 });
     setTimeout(() => { b.classList.add('out'); setTimeout(() => b.remove(), 400); }, 2400);
   }
-  function tap(p) { const h = hit(p); if (h) { say(h); return true; } return false; }
+  // api.onMem(k)：返回 true 表示这次点击已经被处理（比如打开一张还没看过的制作手记），就不再冒那句话
+  function tap(p) { const h = hit(p); if (h) { if (api.onMem && api.onMem(h.m.k)) return true; say(h); return true; } return false; }
   // 鼠标悬停：返回是否停在某件东西上（用来把鼠标变成手指）
   function hoverAt(p) { const h = p ? hit(p) : null; const m = h ? h.m : null; if (m && m !== hover) AU.sfx('blip'); hover = m; return !!m; }
 
@@ -234,5 +238,6 @@ const DREAM = (() => {
   function memSprite(k) { if (!sprites) makeSprites(); return sprites.mem[k]; }
   function memAt(k, t) { const m = MEM.find((x) => x.k === k); return m ? memPos(m, t) : null; }
   function cushion() { if (!sprites) makeSprites(); return sprites.cushion; }
-  return { draw, drawFg, prepare, reflect, rim, tap, hoverAt, heart, HEART_C, memSprite, memAt, cushion, sprite, puff, CL_NEAR };
+  const api = { draw, drawFg, prepare, reflect, rim, tap, hoverAt, heart, HEART_C, memSprite, memAt, cushion, sprite, puff, CL_NEAR, onMem: null, mark: null };
+  return api;
 })();
