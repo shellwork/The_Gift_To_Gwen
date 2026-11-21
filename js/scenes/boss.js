@@ -180,9 +180,11 @@
         <button class="btn" data-k="coffee" ${st.coffee ? '' : 'disabled'}><i class="pic pic-coffee"></i>${A.coffee.name} ×${st.coffee}<span class="d">${A.coffee.desc}</span></button>
         <button class="btn" data-k="quiz"><i class="pic pic-quiz"></i>${A.quiz.name}<span class="d">${A.quiz.desc}</span></button>
         <button class="btn ${canAgent ? 'primary' : ''}" data-k="agent" ${canAgent ? '' : 'disabled'}><i class="pic pic-agent"></i>${A.agent.name}<span class="d">${st.agentUsed ? '已使用' : A.agent.desc}</span></button></div>`);
+      // 选行动的时候，Bex 的血条挪到行动菜单上面；平时贴在字幕栏上面（不挡 Bex 的脸）
+      if (hud) hud.classList.add('menu-up');
       box.querySelectorAll('button').forEach((b) => {
         b.addEventListener('pointerdown', (e) => e.stopPropagation());
-        b.addEventListener('click', (e) => { e.stopPropagation(); if (b.disabled) return; AU.sfx('select'); box.remove(); res(b.dataset.k); });
+        b.addEventListener('click', (e) => { e.stopPropagation(); if (b.disabled) return; AU.sfx('select'); box.remove(); if (hud) hud.classList.remove('menu-up'); res(b.dataset.k); });
       });
     });
   }

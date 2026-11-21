@@ -173,7 +173,8 @@ button { font-family: inherit; }
 .hpbar .fill { height: 100%; background: #7ed99a; transition: width .5s; }
 .hpbar.boss .fill { background: #ff8a7a; }
 .hpbar.left { left: calc(var(--u) * 6); }
-.hpbar.right { right: calc(var(--u) * 60); text-align: right; }   /* 让出右上角的菜单 / 快进 / 声音按钮 */
+.hpbar.right { top: auto; right: calc(var(--u) * 10); bottom: calc(var(--u) * 34); text-align: right; transition: bottom .25s; }   /* Bex 的血条放在右下、字幕栏上面，和左上 Gwen 的对称 */
+.menu-up .hpbar.right { bottom: calc(var(--u) * 66); }   /* 选行动时让到行动菜单上面 */
 .hpbar .lbl { color: #ffd66b; margin-left: calc(var(--u) * 2); }
 .hpbar.right .lbl { margin-left: 0; margin-right: calc(var(--u) * 2); }
 .actions { position: absolute; left: calc(var(--u) * 8); right: calc(var(--u) * 8); bottom: calc(var(--u) * 6); display: grid; grid-template-columns: 1fr 1fr; gap: calc(var(--u) * 3); }
