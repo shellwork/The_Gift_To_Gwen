@@ -348,7 +348,7 @@
     const list = MB.tracks.filter(([k]) => heard.has(k) || k === G.scenes.title.bgm);
     if (!list.length) return;
     let idx = Math.max(0, list.findIndex(([k]) => k === (AU.current || G.scenes.title.bgm)));
-    let playing = true, elapsed = 0, last = performance.now();
+    let playing = true, elapsed = 0, last = performance.now(), pausedAt = null;
     let open = false; try { open = localStorage.getItem(MB_OPEN) === '1'; } catch (e) {}
     const left = MB.tracks.length - list.length;
     const w = G.el(`<div class="mbox${open ? ' open' : ''}">
@@ -368,7 +368,7 @@
       w.querySelectorAll('.mb-row').forEach((r) => r.classList.toggle('on', +r.dataset.i === idx));
     };
     const dur = () => { const T = AU.trackInfo(list[idx][0]); return T ? ((T.beats - T.start) * 60) / T.bpm : 60; };
-    const play = (i) => { idx = (i + list.length) % list.length; elapsed = 0; playing = true; AU.unlock(); AU.crossTo(list[idx][0], 0.6, 0.8); G.scenes.title.bgm = list[idx][0]; sync(); const r = w.querySelector(`.mb-row[data-i="${idx}"]`); if (r) r.scrollIntoView({ block: 'nearest' }); };
+    const play = (i) => { idx = (i + list.length) % list.length; elapsed = 0; playing = true; pausedAt = null; AU.unlock(); AU.crossTo(list[idx][0], 0.6, 0.8); G.scenes.title.bgm = list[idx][0]; sync(); const r = w.querySelector(`.mb-row[data-i="${idx}"]`); if (r) r.scrollIntoView({ block: 'nearest' }); };
     const setOpen = (o) => { open = o; w.classList.toggle('open', o); try { localStorage.setItem(MB_OPEN, o ? '1' : '0'); } catch (e) {} AU.sfx('click'); };
     w.querySelector('.mb-mini').addEventListener('click', () => setOpen(true));
     w.querySelector('.mb-fold').addEventListener('click', () => setOpen(false));
@@ -376,7 +376,9 @@
     w.querySelector('.mb-next').addEventListener('click', () => { AU.sfx('click'); play(idx + 1); });
     w.querySelector('.mb-play').addEventListener('click', () => {
       AU.unlock();
-      if (playing) { playing = false; AU.stopBgm(0.5); } else { playing = true; AU.crossTo(list[idx][0], 0.3, 0.6); }
+      // 暂停时记住放到第几拍，继续时从那一拍接着放（不再从头开始）
+      if (playing) { const pos = AU.position(); pausedAt = pos ? pos.beat : null; playing = false; AU.stopBgm(0.3); }
+      else { playing = true; AU.bgm(list[idx][0], pausedAt ?? undefined, 0.3); pausedAt = null; }
       sync();
     });
     w.querySelectorAll('.mb-row').forEach((r) => r.addEventListener('click', () => { AU.sfx('select'); play(+r.dataset.i); }));
