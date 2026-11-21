@@ -419,7 +419,7 @@ const LAB = (() => {
       O({ id: 'bulb', x: 672, y: 56, w: 28, h: 34, stand: 686, onTap: async () => {
         if (G.flags.lab_bulb) return G.talk(S.bulbAgain);
         if (st.bulb === 0) await G.say(S.bulbOff[0], S.bulbOff[1]);
-        if (st.bulb < S.bulbTries.length) { AU.sfx('click'); G.toast(S.bulbTries[st.bulb], 1600); setTimeout(() => G.toast(S.bulbRetry, 2000), 350); st.bulb++; return; }
+        if (st.bulb < S.bulbTries.length) { AU.sfx('click'); G.hint(S.bulbTries[st.bulb] + '　·　' + S.bulbRetry, 2200); st.bulb++; return; }
         G.flags.lab_bulb = true; G.persist();
         AU.sfx('ding');
         G.burst(686, 76, 20, ['#fff3a0', '#ffffff'], { speed: 50, life: 0.8, g: 0 });

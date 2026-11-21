@@ -166,13 +166,19 @@ const DREAM = (() => {
   }
 
   // 天空之镜：把地平线以上的画面倒过来映在地上，一行行轻微晃动，再罩一层紫色
+  // 先把地平线上面那一条画面整块拷到一张缓冲画布上（每帧只读一次画布），再从缓冲里一行行画到地面上
+  // （iPad / iPhone 的 Safari 里，画布往自己身上拷贝非常慢，以前每帧要拷五十多次）
+  let mirBuf = null;
   function mirror(ctx, t, floor) {
-    const src = ctx.canvas, H = 360 - floor;
-    if (G.lowFx) { ctx.save(); ctx.translate(0, floor * 2); ctx.scale(1, -1); ctx.drawImage(src, 0, floor - H, 640, H, 0, floor - H, 640, H); ctx.restore(); }
+    const H = 360 - floor;
+    if (!mirBuf) { mirBuf = document.createElement('canvas'); mirBuf.width = 640; mirBuf.height = 360; }
+    const m = mirBuf.getContext('2d');
+    m.clearRect(0, 0, 640, H); m.drawImage(ctx.canvas, 0, floor - H, 640, H, 0, 0, 640, H);
+    if (G.lowFx) { ctx.save(); ctx.translate(0, floor * 2); ctx.scale(1, -1); ctx.drawImage(mirBuf, 0, 0, 640, H, 0, floor - H, 640, H); ctx.restore(); }
     else for (let y = 0; y < H; y += 2) {
-      const sy = floor - 2 - y; if (sy < 0) break;
+      const sy = H - 2 - y; if (sy < 0) break;
       const off = Math.round(Math.sin((floor + y) * 0.18 + t * 2.2) * (0.6 + y * 0.035));
-      ctx.drawImage(src, 0, sy, 640, 2, off, floor + y, 640, 2);
+      ctx.drawImage(mirBuf, 0, sy, 640, 2, off, floor + y, 640, 2);
     }
     alpha(0.28, () => R(0, floor, 640, H, '#5a2a7a'));
     HD.fadeV(0, floor, 640, H, '#2a1050', 0, 0.35);

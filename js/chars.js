@@ -84,7 +84,7 @@ const CHR = (() => {
     },
     me: {
       hair: 'short', H: ['#0c0c12', '#16161e', '#22222c', '#363644', '#50506a'],
-      skin: ['#a8665e', '#d19078', '#ebb497', '#f8cfb4', '#ffe2cf'], top: 'tee', T: ['#101016', '#19191f', '#24242d', '#33333f', '#474758'], print: true,
+      skin: ['#a8665e', '#d19078', '#ebb497', '#f8cfb4', '#ffe2cf'], top: 'tee', T: ['#9c98a6', '#bdb9c4', '#dedae0', '#f0eeee', '#fdfcfa'], print: 'cat',
       bottom: 'pants', B: ['#4c4c5a', '#646474', '#7c7c8c', '#9898a6', '#b2b2be'],
       shoes: ['#9a9aa8', '#c8c8d2', '#ececf0', '#ffffff'], sneaker: true, eye: '#1b1b24', iris: '#3a2c2a', mouth: '#b8645e', glasses: '#3d4258',
       legX: [26.5, 33.5], wide: 1,
@@ -269,7 +269,16 @@ const CHR = (() => {
       if (top === 'tee') {
         d.ell(30.6, 35.6 + U, 3.4, 1.8, K[3]); d.rect(27.2, 36.6 + U, 6.8, 0.6, T[b + 1]);
         d.rect(w0 + 0.6, 55.6 + L, w1 - w0 - 1.2, 1.4, T[b - 1]);
-        if (sp.print) {
+        if (sp.print === 'cat') {
+          // 胸前的黑色印花：一只歪着头的小猫（原创的简笔猫脸）
+          const px = 30.6, py = 45.4 + U, k = '#1b1b24';
+          d.poly([[px - 4.2, py - 1.4], [px - 3.6, py - 5.4], [px - 1.4, py - 2.8]], k); d.poly([[px + 4.2, py - 1.4], [px + 3.4, py - 5.4], [px + 1.2, py - 2.8]], k);
+          d.ell(px, py + 0.2, 4.4, 3.6, k);
+          d.rect(px - 2.4, py - 0.4, 1.4, 0.8, '#fdfcfa'); d.rect(px + 1, py - 0.4, 1.4, 0.8, '#fdfcfa');
+          d.rect(px - 0.4, py + 1, 0.8, 0.6, '#f4a6c0');
+          d.rect(px - 7, py + 0.6, 2.4, 0.5, k); d.rect(px - 7, py + 1.8, 2.4, 0.5, k); d.rect(px + 4.6, py + 0.6, 2.4, 0.5, k); d.rect(px + 4.6, py + 1.8, 2.4, 0.5, k);
+          d.rect(px + 4.4, py + 3.8, 1.2, 1.2, k); d.rect(px - 5.6, py - 5.2, 1, 1, k);
+        } else if (sp.print) {
           // 胸前的动漫小人
           const px = 30.6, py = 45 + U;
           d.ell(px, py, 4.8, 4.6, '#f4a6c0'); d.ell(px - 1, py - 1.6, 3, 2, '#ffc4d8');
@@ -403,9 +412,12 @@ const CHR = (() => {
     // 眼镜
     if (sp.glasses) {
       const g = sp.glasses;
+      // 圆角矩形的细框：四条边在角上收进去一点，镜片上一点高光
       for (const x0 of [25.4, 33.4]) {
-        d.rect(x0, y - 1, 5.6, 0.8, g); d.rect(x0, y + 3.2, 5.6, 0.8, g); d.rect(x0, y - 1, 0.8, 5, g); d.rect(x0 + 4.8, y - 1, 0.8, 5, g);
-        d.px(x0 + 1.2, y, '#ffffff'); if (fine) d.px(x0 + 1.7, y, '#dfe8ff');
+        d.rect(x0 + 0.9, y - 1, 3.8, 0.7, g); d.rect(x0 + 0.9, y + 3.3, 3.8, 0.7, g);
+        d.rect(x0, y - 0.1, 0.7, 3.2, g); d.rect(x0 + 4.9, y - 0.1, 0.7, 3.2, g);
+        d.rect(x0 + 0.4, y - 0.6, 0.7, 0.7, g); d.rect(x0 + 4.5, y - 0.6, 0.7, 0.7, g); d.rect(x0 + 0.4, y + 2.9, 0.7, 0.7, g); d.rect(x0 + 4.5, y + 2.9, 0.7, 0.7, g);
+        d.px(x0 + 1.4, y + 0.2, '#ffffff'); if (fine) d.px(x0 + 1.9, y + 0.2, '#dfe8ff');
       }
       d.rect(31, y, 2.4, 0.8, g); d.rect(21.6, y + 0.2, 3.8, 0.8, g);
     }

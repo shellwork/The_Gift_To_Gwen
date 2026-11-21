@@ -333,7 +333,7 @@
 
     setup() {
       if (!bg) bg = paintBg();
-      st = { catX: G.flags.h_protocol ? 452 : 416, arm: POSE_REST.slice(), holding: false, pets: 0, catAwake: 0,
+      st = { catX: G.flags.h_catSill ? 100 : G.flags.h_protocol ? 452 : 416, catDY: G.flags.h_catSill ? -47 : 0, catSill: !!G.flags.h_catSill, arm: POSE_REST.slice(), holding: false, pets: 0, catAwake: 0,
         dust: Array.from({ length: 26 }, (_, i) => ({ x: 80 + rnd(i) * 150, y: 70 + rnd(i + 40) * 180, v: 2 + rnd(i + 80) * 4, p: rnd(i + 3) * 6 })) };
       const g = G.gwen = G.actor({ sprite: 'gwen', x: 150, y: LANE, speed: 95, seed: 0.3 });
       if (G.flags.h_bag) g.bag = true;
@@ -343,6 +343,17 @@
       G.obj({ id: 'bed', label: L.bed, x: 40, y: 184, w: 160, h: 52, stand: 140, onTap: () => G.talk(S.bed) });
       G.obj({ id: 'window', label: L.window, x: 60, y: 54, w: 112, h: 96, stand: 116, onTap: () => G.talk(S.window) });
       G.obj({ id: 'shelf', label: L.shelf, x: 258, y: 88, w: 98, h: 66, stand: 306, onTap: () => G.talk(S.shelf) });
+      const branchReady = () => G.save.cleared && typeof BRANCH !== 'undefined';
+      const catInvite = async (already) => {
+        if (!already) {
+          AU.sfx('meow');
+          st.catDY = st.catDY || 0;
+          await G.tween(st, { catX: 100, catDY: -47 }, 650, (k) => k * (2 - k));
+          st.catSill = true; G.flags.h_catSill = true; G.persist();
+        }
+        const went = await BRANCH.invite('home', async () => { AU.sfx('purr'); await G.tween(st, { catDY: -70 }, 200); st.catGone = true; await G.wait(300); });
+        if (!went) G.toast(STORY.branch.catWaits, 2400);
+      };
       G.obj({
         id: 'cat', label: L.cat, x: 0, y: 186, w: 40, h: 20, stand: 432,
         onTap: async () => {
@@ -358,20 +369,18 @@
             G.toast(S.rackUnlocked, 3200);
             G.achieve('cat');
             G.setGoal('arm');
+            // 第一轮就摸够 5 次了：第二轮拿到 Protocol 之后，猫直接跳上窗台问要不要跟它走
+            if (branchReady() && G.save.ach.cat5) await catInvite();
+          } else if (st.catSill) {
+            // 上次选了「先去实验室」，猫还趴在窗台上等着：再点它，可以改主意
+            await catInvite(true);
           } else {
             const v = S.catAgain[st.pets % S.catAgain.length];
             st.pets++; G.flags.h_pets = (G.flags.h_pets || 1) + 1; G.persist();
             await G.talk(v);
             if (G.flags.h_pets >= 5) G.achieve('cat5');
             // 通关过一次之后：第 5 次摸猫，猫跳上窗台，带你走进隐藏支线
-            if (G.flags.h_pets >= 5 && G.save.cleared && typeof BRANCH !== 'undefined') {
-              await G.wait(300);
-              AU.sfx('meow');
-              st.catDY = st.catDY || 0;
-              await G.tween(st, { catX: 100, catDY: -47 }, 650, (k) => k * (2 - k));
-              await BRANCH.invite('home', async () => { AU.sfx('purr'); await G.tween(st, { catDY: -70 }, 200); st.catGone = true; await G.wait(300); });
-              if (!st.catGone) await G.tween(st, { catX: 452, catDY: 0 }, 600);
-            }
+            if (G.flags.h_pets >= 5 && branchReady()) { await G.wait(300); await catInvite(); }
           }
         },
       });
@@ -437,7 +446,7 @@
     },
 
     update(dt) {
-      const cat = G.objects.find((o) => o.id === 'cat'); if (cat) cat.x = st.catX - 2;
+      const cat = G.objects.find((o) => o.id === 'cat'); if (cat) { cat.x = st.catX - 2; cat.y = 186 + (st.catDY || 0); cat.stand = st.catSill ? 150 : 432; }
       if (st.catAwake > 0) st.catAwake -= dt;
     },
 

@@ -352,17 +352,21 @@
     let open = false; try { open = localStorage.getItem(MB_OPEN) === '1'; } catch (e) {}
     const left = MB.tracks.length - list.length;
     const w = G.el(`<div class="mbox${open ? ' open' : ''}">
-      <button class="mb-mini" aria-label="${MB.title}"><span class="mb-disc"><i></i></span><span class="mb-mname"></span></button>
+      <button class="mb-mini" aria-label="${MB.title}"><span class="mb-disc"><i></i></span><span class="mb-mname"><span class="mq"></span></span></button>
       <div class="mb-body">
-        <div class="mb-head"><span class="mb-disc big"><i></i></span><div class="mb-info"><div class="mb-t">${MB.title} · ${MB.count.replace('{n}', list.length).replace('{m}', MB.tracks.length)}</div><div class="mb-name"></div></div><button class="mb-fold" aria-label="收起">▾</button></div>
+        <div class="mb-head"><span class="mb-disc big"><i></i></span><div class="mb-info"><div class="mb-t">${MB.title} · ${MB.count.replace('{n}', list.length).replace('{m}', MB.tracks.length)}</div><div class="mb-name"><span class="mq"></span></div></div><button class="mb-fold" aria-label="收起">▾</button></div>
         <div class="mb-bar"><i></i></div>
         <div class="mb-ctl"><button class="mb-prev">◀◀</button><button class="mb-play"></button><button class="mb-next">▶▶</button></div>
-        <div class="mb-list">${list.map(([k, n], i) => `<button class="mb-row" data-i="${i}"><span class="mb-no">${String(i + 1).padStart(2, '0')}</span>${n}</button>`).join('')}${left ? `<div class="mb-more">${MB.more.replace('{k}', left)}</div>` : ''}</div>
+        <div class="mb-listwrap"><div class="mb-list">${list.map(([k, n], i) => `<button class="mb-row" data-i="${i}"><span class="mb-no">${String(i + 1).padStart(2, '0')}</span>${n}</button>`).join('')}${left ? `<div class="mb-more">${MB.more.replace('{k}', left)}</div>` : ''}</div><div class="mb-sb"><i></i></div></div>
       </div></div>`);
     stopAll(w);
     const sync = () => {
       const name = list[idx][1];
-      w.querySelector('.mb-name').textContent = name; w.querySelector('.mb-mname').textContent = name;
+      // 名字太长放不下时，慢慢左右滚动显示全名
+      for (const box of w.querySelectorAll('.mb-name, .mb-mname')) {
+        const mq = box.querySelector('.mq'); mq.textContent = name; mq.classList.remove('run'); box.style.removeProperty('--mq');
+        requestAnimationFrame(() => { const over = mq.scrollWidth - box.clientWidth; if (over > 2) { box.style.setProperty('--mq', -over + 'px'); mq.classList.add('run'); } });
+      }
       w.querySelector('.mb-play').textContent = playing ? '||' : '▶';
       w.classList.toggle('playing', playing);
       w.querySelectorAll('.mb-row').forEach((r) => r.classList.toggle('on', +r.dataset.i === idx));
@@ -382,7 +386,24 @@
       sync();
     });
     w.querySelectorAll('.mb-row').forEach((r) => r.addEventListener('click', () => { AU.sfx('select'); play(+r.dataset.i); }));
+    const lst = w.querySelector('.mb-list'), sb = w.querySelector('.mb-sb'), th = sb.querySelector('i');
+    const syncSb = () => {
+      const h = lst.clientHeight, H = lst.scrollHeight;
+      sb.classList.toggle('off', H <= h + 1);
+      const k = h / H, th0 = Math.max(0.15, k);
+      th.style.height = th0 * 100 + '%';
+      th.style.top = (H > h ? (lst.scrollTop / (H - h)) * (1 - th0) * 100 : 0) + '%';
+    };
+    lst.addEventListener('scroll', syncSb);
+    sb.addEventListener('pointerdown', (e) => {
+      e.preventDefault(); sb.setPointerCapture(e.pointerId);
+      const move = (ev) => { const r = sb.getBoundingClientRect(); const k = G.clamp((ev.clientY - r.top) / r.height, 0, 1); lst.scrollTop = k * (lst.scrollHeight - lst.clientHeight); };
+      move(e);
+      sb.onpointermove = move; sb.onpointerup = () => { sb.onpointermove = null; };
+    });
+    w.querySelector('.mb-mini').addEventListener('click', () => requestAnimationFrame(syncSb));
     sync();
+    requestAnimationFrame(syncSb);
     // 一首放完一遍就自动换下一首（按列表顺序循环）
     const iv = setInterval(() => {
       if (!w.isConnected) { clearInterval(iv); return; }

@@ -88,7 +88,15 @@
       // 吹蜡烛
       if (st.phase === 'blow') {
         let blowing = st.holding;
-        if (AU.mic) { const lv = AU.mic.level(); st.level = lv; if (lv > 0.05) blowing = true; }
+        // 麦克风：一直估计房间里的底噪，明显高过底噪就算在吹——轻轻吹一口就够了
+        if (AU.mic) {
+          const lv = AU.mic.level(); st.level = lv;
+          if (st.noise == null) st.noise = Math.min(lv, 0.006);
+          // 底噪：变安静时很快跟下来，变吵时只慢慢往上挪；门槛在 0.012～0.022 之间，正常轻轻吹一口一定能过
+          const th = G.clamp(st.noise * 2.2, 0.012, 0.022);
+          if (lv > th) blowing = true;
+          else st.noise = lv < st.noise ? st.noise * 0.9 + lv * 0.1 : st.noise * 0.995 + lv * 0.005;
+        }
         if (blowing) st.blow = Math.min(1, st.blow + dt / 1.4);
         else st.blow = Math.max(0, st.blow - dt / 5);
         const outN = st.out.filter(Boolean).length;
@@ -832,15 +840,22 @@
     G.lock();
     const ui = G.el(`<div class="blow-ui"><div class="title">${S.blowTitle}</div><div>${S.blowHint}</div>
       <div class="meter"><div class="fill"></div></div>
-      <div class="row"><button class="btn small mic"><i class="ico ico-mic"></i>${S.micBtn}</button></div></div>`);
+      <div class="row mic-status"><i class="ico ico-mic"></i><span>${S.micAsk}</span></div></div>`);
     st.ui = ui;
-    const mic = ui.querySelector('.mic');
-    mic.addEventListener('pointerdown', (e) => e.stopPropagation());
-    mic.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      try { await AU.startMic(); mic.innerHTML = '<i class="ico ico-mic"></i>麦克风已开启，对着它吹气吧'; mic.disabled = true; }
-      catch (err) { mic.textContent = '没有麦克风权限，长按屏幕也可以'; mic.disabled = true; }
-    });
+    // 界面一出来就自动请求麦克风；不给权限、或者打不开，就提示长按屏幕
+    const status = ui.querySelector('.mic-status span'), icon = ui.querySelector('.mic-status .ico');
+    st.noise = null;
+    (async () => {
+      try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('no mic');
+        await AU.startMic();
+        if (st.phase !== 'blow') { if (AU.mic) AU.mic.stop(); return; }   // 已经长按吹完了
+        status.textContent = S.micOn;
+      } catch (err) {
+        if (st.phase !== 'blow') return;
+        status.textContent = S.micOff; icon.classList.add('off');
+      }
+    })();
     G.onPointer = (e) => { if (e.target.closest('button')) return true; st.holding = true; return true; };
     G.onPointerUp = () => (st.holding = false);
     G.onKey = () => { st.holding = true; return true; };

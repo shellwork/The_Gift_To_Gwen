@@ -1,5 +1,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-html, body { width: 100%; height: 100%; background: #14122b; overflow: hidden; }
+html, body { width: 100%; height: 100%; background: #14122b; overflow: hidden; overscroll-behavior: none; touch-action: none; -webkit-text-size-adjust: 100%; }
+/* 把整页钉在可见区域里：iPad 上不会被缩放 / 滚动挪开 */
+body { position: fixed; inset: 0; }
 body {
   display: flex; align-items: center; justify-content: center;
   font-family: 'Fusion Pixel 12px Proportional SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
@@ -7,7 +9,7 @@ body {
 }
 button { font-family: inherit; }
 
-#stage { position: relative; --u: 3px; --fs: 18px; --fs2: 12px; overflow: hidden; background: #000; }
+#stage { position: relative; flex: none; --u: 3px; --fs: 18px; --fs2: 12px; overflow: hidden; background: #000; }
 #game { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: auto; transition: filter .6s; }
 #fade { position: absolute; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity .5s; z-index: 50; }
 #fade.white { background: #fff; }
@@ -91,7 +93,7 @@ button { font-family: inherit; }
 @keyframes glow { 0% { transform: scale(1.6); } 100% { transform: scale(1); } }
 
 /* toasts & achievements */
-#toasts { position: absolute; top: calc(var(--u) * 6); left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: calc(var(--u) * 2); width: 80%; }
+#toasts { position: absolute; top: calc(var(--u) * 6); left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: calc(var(--u) * 2); width: 80%; pointer-events: none; }  /* 提示条只是看的，点击会穿过去，不会挡住下面的东西 */
 .toast {
   font-size: var(--fs2); background: rgba(43, 34, 56, .88); color: #fffaf0; padding: calc(var(--u) * 2) calc(var(--u) * 6);
   border-radius: calc(var(--u) * 1.5); animation: drop .3s ease-out; text-align: center;
@@ -171,7 +173,9 @@ button { font-family: inherit; }
 .hpbar .fill { height: 100%; background: #7ed99a; transition: width .5s; }
 .hpbar.boss .fill { background: #ff8a7a; }
 .hpbar.left { left: calc(var(--u) * 6); }
-.hpbar.right { right: calc(var(--u) * 24); text-align: right; }
+.hpbar.right { right: calc(var(--u) * 60); text-align: right; }   /* 让出右上角的菜单 / 快进 / 声音按钮 */
+.hpbar .lbl { color: #ffd66b; margin-left: calc(var(--u) * 2); }
+.hpbar.right .lbl { margin-left: 0; margin-right: calc(var(--u) * 2); }
 .actions { position: absolute; left: calc(var(--u) * 8); right: calc(var(--u) * 8); bottom: calc(var(--u) * 6); display: grid; grid-template-columns: 1fr 1fr; gap: calc(var(--u) * 3); }
 .actions .btn { text-align: left; }
 .actions .btn .d { font-size: var(--fs2); color: #6a5a7a; display: block; }
@@ -563,3 +567,26 @@ button { font-family: inherit; }
 .mb-row.on { background: #ffe0ec; color: #b0405a; }
 .mb-no { color: #b8a890; margin-right: calc(var(--u) * 3); }
 .mb-more { color: #b8a890; text-align: center; padding: calc(var(--u) * 2) 0; }
+
+/* 音乐盒：长歌名换行 / 滚动显示，列表右边一条可以拖的滚动条 */
+.mb-name, .mb-mname { overflow: hidden; white-space: nowrap; text-overflow: clip; }
+.mb-name .mq, .mb-mname .mq { display: inline-block; }
+.mq.run { animation: mq 7s ease-in-out infinite; }
+@keyframes mq { 0%, 18% { transform: translateX(0); } 50%, 68% { transform: translateX(var(--mq)); } 100% { transform: translateX(0); } }
+.mb-listwrap { position: relative; display: flex; gap: calc(var(--u) * 2); border-top: calc(var(--u) * .5) dashed #d9c7a7; padding-top: calc(var(--u) * 2); }
+.mbox .mb-list { flex: 1; border-top: none; padding-top: 0; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.mbox .mb-list::-webkit-scrollbar { display: none; }
+.mbox .mb-row { white-space: normal; overflow: visible; text-overflow: clip; display: flex; align-items: flex-start; line-height: 1.5; }
+.mbox .mb-no { flex: none; }
+.mb-sb { flex: none; position: relative; width: calc(var(--u) * 3); background: #efe4cc; border: calc(var(--u) * .5) solid #2b2238; cursor: pointer; touch-action: none; }
+.mb-sb.off { visibility: hidden; }
+.mb-sb i { position: absolute; left: 0; right: 0; top: 0; height: 30%; background: #ff8fb3; }
+.blow-ui .mic-status { align-items: center; gap: calc(var(--u) * 2); color: #ffe9a8; text-shadow: 0 calc(var(--u) * 1) 0 #000; }
+.blow-ui .mic-status .ico.off { opacity: .4; }
+
+/* 音乐盒列表：每一行都保持自己的高度，放不下就滚动（以前 iPad 上会被压扁挤在一起） */
+.mbox .mb-row { flex: none; }
+.mbox .mb-list { min-height: 0; }
+/* 屏幕下方的小提示（比如点灯泡时），不挡住要点的东西 */
+.g-hint { transition: opacity .3s; }
+.g-hint.out { opacity: 0; }

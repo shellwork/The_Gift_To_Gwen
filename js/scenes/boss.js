@@ -98,8 +98,8 @@
       await G.wait(400);
       await G.talk(S.intro);
       hud = G.el(`<div>
-        <div class="hpbar left">Gwen<div class="bar"><div class="fill g"></div></div></div>
-        <div class="hpbar right boss">${S.name}<div class="bar"><div class="fill b"></div></div></div></div>`);
+        <div class="hpbar left">Gwen<span class="lbl">${S.moodLabel}</span><div class="bar"><div class="fill g"></div></div></div>
+        <div class="hpbar right boss"><span class="lbl">${S.doubtLabel}</span>${S.name}<div class="bar"><div class="fill b"></div></div></div></div>`);
       syncHud();
       while (st.bHp > 0) {
         await playerTurn();
@@ -107,6 +107,8 @@
         await G.wait(400);
         await bossTurn();
         st.turn++;
+        // 第一回合下来还没猜过潜台词：翻译器自动启动一次
+        if (!st.quizI && st.bHp > 0) { await G.wait(300); AU.sfx('beep'); await G.say('', S.quizAuto); await quiz(); }
       }
       await ending();
     },
@@ -202,14 +204,7 @@
       await G.say('', S.coffeeMsg);
       G.gwen.face = null;
     } else if (k === 'quiz') {
-      const q = S.quiz[st.quizI % S.quiz.length]; st.quizI++;
-      st.thinking = true;
-      await G.say('Bex', q.say);
-      st.thinking = false;
-      const order = Math.random() < 0.5 ? [0, 1] : [1, 0];
-      const c = await G.choose(S.quizAsk, order.map((i) => q.options[i]));
-      if (order[c] === q.answer) { G.gwen.face = 'happy'; await G.say('', S.quizRight, { sub: q.options[q.answer] }); hitBoss(rnd(26, 32), true); G.achieve('quiz'); await G.wait(500); G.gwen.face = null; }
-      else { G.gwen.face = 'meh'; await G.say('', S.quizWrong, { sub: q.options[q.answer] }); G.gwen.face = null; }
+      await quiz();
     } else if (k === 'agent') {
       st.agentUsed = true;
       G.gwen.pose = 'up';
@@ -219,6 +214,19 @@
       G.burst(520, 180, 40, ['#ffd66b', '#ffffff', '#81d8d0'], { speed: 110, life: 1, g: 40, size: 2 });
       await G.wait(600);
     }
+  }
+
+  // 猜一次 Bex 的潜台词：猜对暴击；猜对猜错都算拿到成就（不会卡在这里）
+  async function quiz() {
+    const q = S.quiz[st.quizI % S.quiz.length]; st.quizI++;
+    st.thinking = true;
+    await G.say('Bex', q.say);
+    st.thinking = false;
+    const order = Math.random() < 0.5 ? [0, 1] : [1, 0];
+    const c = await G.choose(S.quizAsk, order.map((i) => q.options[i]));
+    if (order[c] === q.answer) { G.gwen.face = 'happy'; await G.say('', S.quizRight, { sub: q.options[q.answer] }); hitBoss(rnd(26, 32), true); await G.wait(500); G.gwen.face = null; }
+    else { G.gwen.face = 'meh'; await G.say('', S.quizWrong, { sub: q.options[q.answer] }); G.gwen.face = null; }
+    G.achieve('quiz');
   }
 
   async function bossTurn() {

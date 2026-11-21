@@ -31,8 +31,18 @@ const G = (() => {
   G.resetSave = () => { const ach = G.save.ach || {}, cleared = !!G.save.cleared; G.save = { scene: null, reagents: [false, false, false, false, false], ach, cleared, flags: {} }; G.flags = G.save.flags; G.persist(); };
 
   // ---------- resize ----------
+  // 量可见区域：iPad Safari 上 innerWidth 有时会过期（从后台切回来、转屏、缩放过），所以几个值取最小
+  function viewSize() {
+    const de = document.documentElement, vv = window.visualViewport;
+    let vw = Math.min(window.innerWidth, de.clientWidth || Infinity), vh = Math.min(window.innerHeight, de.clientHeight || Infinity);
+    if (vv && Math.abs(vv.scale - 1) < 0.01) { vw = Math.min(vw, vv.width); vh = Math.min(vh, vv.height); }
+    return [Math.max(1, Math.floor(vw)), Math.max(1, Math.floor(vh))];
+  }
+  let lastView = '';
   function resize() {
-    const vw = window.innerWidth, vh = window.innerHeight;
+    const [vw, vh] = viewSize();
+    lastView = vw + 'x' + vh;
+    window.scrollTo(0, 0);
     const s0 = Math.min(vw / CW, vh / CH);
     const s = (CW * s0) / 320;
     G.scale = s;
@@ -52,6 +62,29 @@ const G = (() => {
     $('#rotate').classList.toggle('hidden', !portrait || G.portraitOk);
   }
   window.addEventListener('resize', resize);
+  // iPad / iPhone：转屏、从后台切回来、标签页恢复、地址栏伸缩时都重新量一次（有时要等系统先把界面摆好）
+  const resizeSoon = () => { resize(); setTimeout(resize, 250); setTimeout(resize, 800); };
+  window.addEventListener('orientationchange', resizeSoon);
+  window.addEventListener('pageshow', resizeSoon);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) resizeSoon(); });
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
+  // 禁止网页缩放：iPhone / iPad 的 Safari 不理会 viewport 里的「不许缩放」，所以把双指捏合、双击放大都直接拦下来
+  ['gesturestart', 'gesturechange', 'gestureend'].forEach((t) => document.addEventListener(t, (e) => e.preventDefault(), { passive: false }));
+  document.addEventListener('touchmove', (e) => { if (e.touches.length > 1 || (e.scale !== undefined && e.scale !== 1)) e.preventDefault(); }, { passive: false });
+  // 双击放大：页面上的 touch-action: none 已经把它关掉了（这里不拦 touchend，免得连点按钮时第二下没反应）
+  document.addEventListener('dblclick', (e) => e.preventDefault(), { passive: false });
+  // 万一已经被放大了：把 viewport 重新写一遍，Safari 会把缩放复原
+  function resetZoom() {
+    const m = document.querySelector('meta[name=viewport]'); if (!m) return;
+    const c = 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover';
+    m.setAttribute('content', c + ', minimum-scale=1'); setTimeout(() => m.setAttribute('content', c), 50);
+  }
+  // 保险：每秒检查一次，画面尺寸和可见区域对不上、或者整页被挪开了，就马上摆回来
+  setInterval(() => {
+    if (window.visualViewport && window.visualViewport.scale > 1.01) resetZoom();
+    const [vw, vh] = viewSize(), r = stage.getBoundingClientRect();
+    if (vw + 'x' + vh !== lastView || r.left < -1 || r.top < -1 || r.right > vw + 1 || r.bottom > vh + 1 || window.scrollX || window.scrollY) resize();
+  }, 1000);
   $('#btn-portrait').addEventListener('click', () => { G.portraitOk = true; resize(); });
 
   // ---------- helpers ----------
@@ -444,7 +477,7 @@ const G = (() => {
   let last = performance.now();
   function frame(now) {
     const raw = (now - last) / 1000;
-    const dt = Math.min(0.05, raw); last = now;
+    const dt = Math.min(0.1, raw); last = now;   // 慢的设备上也按真实时间走（以前上限 0.05，掉到十几帧时所有动画都会变成慢动作）
     G.t += dt;
     // 性能保底：连续几秒平均每帧超过 26ms，就自动减少特效
     if (!G.lowFx && raw < 0.1) { G._ema = (G._ema ?? 0.016) * 0.97 + raw * 0.03; if (G.t > 3 && G._ema > 0.026) { G.lowFx = true; resize(); console.log('lowFx on'); } }
@@ -581,6 +614,14 @@ const G = (() => {
   muteBtn.addEventListener('click', (e) => { e.stopPropagation(); const justWoke = performance.now() - wokeAt < 1500; AU.unlock(); if (!(justWoke && !AU.muted)) AU.setMuted(!AU.muted); syncMute(); });
   syncMute();
 
+  // 屏幕下方的一行小提示（放在下面，不会挡住画面上方要点的东西）；再调用一次会换成新的文字
+  let hintT = 0;
+  G.hint = (text, ms = 1800) => {
+    let e = layer.querySelector('.g-hint');
+    if (!e) e = G.el('<div class="flip-hint g-hint"></div>');
+    e.textContent = text; e.classList.remove('out');
+    clearTimeout(hintT); hintT = setTimeout(() => { e.classList.add('out'); setTimeout(() => e.remove(), 320); }, ms);
+  };
   // 作废当前剧情：关掉对话和选项，清掉补间，旧的 await 都不会再往下走
   G.abort = () => {
     G.epoch++;
